@@ -60,7 +60,7 @@ function toStudentResult(
           classId: r.psychometric.classId,
           term: r.psychometric.term,
           academicYear: r.psychometric.academicYear,
-          ratings: r.psychometric.ratings as Record<string, PsychometricRating>,
+          ratings: r.psychometric.ratings as unknown as Record<string, PsychometricRating>,
           createdAt: "",
           updatedAt: "",
         }
@@ -103,7 +103,7 @@ function toSchool(info: SchoolInfo): School {
     website: info.website,
     state: info.state,
     lga: info.lga,
-    schoolType: info.schoolType,
+    schoolType: info.schoolType as "public" | "private" | "mission" | undefined,
     templateId: info.templateId,
     createdAt: "",
     updatedAt: "",
