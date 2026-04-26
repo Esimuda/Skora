@@ -1,0 +1,71 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: "Inter", sans-serif;
+    background-color: #f3faff;
+    color: #071e27;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6,
+  .font-headline, .font-display {
+    font-family: "Manrope", sans-serif;
+  }
+}
+
+@layer utilities {
+  .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    font-size: 20px;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-br from-primary to-primary-container text-on-primary
+           font-bold rounded-xl px-6 py-3 hover:opacity-90 transition-opacity shadow-ambient;
+  }
+
+  .btn-ghost {
+    @apply border border-outline-variant/30 text-on-surface-variant font-bold
+           rounded-xl px-6 py-3 hover:bg-surface-container-low transition-colors;
+  }
+
+  .input-inset {
+    @apply w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-sm
+           text-on-surface placeholder:text-on-surface-variant/50 outline-none
+           focus:ring-2 focus:ring-primary-fixed-dim transition-all;
+  }
+
+  .ledger-card {
+    @apply bg-surface-container-lowest rounded-xl shadow-card;
+  }
+
+  .badge-validated {
+    @apply px-3 py-1 bg-secondary-container/40 text-on-secondary-container rounded-full text-xs font-bold;
+  }
+  .badge-pending {
+    @apply px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-full text-xs font-bold;
+  }
+  .badge-error {
+    @apply px-3 py-1 bg-error-container text-on-error-container rounded-full text-xs font-bold;
+  }
+
+  .ledger-row {
+    @apply hover:bg-surface-container-low/50 transition-colors;
+  }
+
+  .nav-active {
+    @apply bg-surface-container-lowest text-primary font-bold rounded-r-full mr-4 shadow-card;
+  }
+  .nav-inactive {
+    @apply text-on-surface-variant hover:bg-surface-container-highest/30 rounded-r-full mr-4 transition-all duration-200 hover:translate-x-1;
+  }
+}
