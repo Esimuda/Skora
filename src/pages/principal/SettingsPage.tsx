@@ -1,6 +1,68 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDataStore } from "@/store/dataStore";
+import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
+import { ModernResultSheet } from "@/templates/ModernResultSheet";
+import { HybridResultSheet } from "@/templates/HybridResultSheet";
+import { StudentResult, School } from "@/types";
+
+const PREVIEW_RESULT: StudentResult = {
+  student: {
+    id: "preview_student",
+    classId: "JSS 2A",
+    admissionNumber: "SKR/2024/007",
+    firstName: "Oluwafemi",
+    lastName: "Adeyemi",
+    middleName: "Blessing",
+    gender: "male",
+    createdAt: "",
+    updatedAt: "",
+  },
+  scores: [
+    { id: "s1", studentId: "p", subjectId: "Mathematics", term: "first", academicYear: "2024/2025", ca1: 18, ca2: 17, exam: 58, total: 93, grade: "A1", remark: "Excellent", createdAt: "", updatedAt: "" },
+    { id: "s2", studentId: "p", subjectId: "English Language", term: "first", academicYear: "2024/2025", ca1: 15, ca2: 16, exam: 52, total: 83, grade: "A1", remark: "Excellent", createdAt: "", updatedAt: "" },
+    { id: "s3", studentId: "p", subjectId: "Basic Science", term: "first", academicYear: "2024/2025", ca1: 14, ca2: 15, exam: 45, total: 74, grade: "B2", remark: "Very Good", createdAt: "", updatedAt: "" },
+    { id: "s4", studentId: "p", subjectId: "Social Studies", term: "first", academicYear: "2024/2025", ca1: 16, ca2: 14, exam: 47, total: 77, grade: "A1", remark: "Excellent", createdAt: "", updatedAt: "" },
+    { id: "s5", studentId: "p", subjectId: "Agricultural Science", term: "first", academicYear: "2024/2025", ca1: 13, ca2: 14, exam: 42, total: 69, grade: "B3", remark: "Good", createdAt: "", updatedAt: "" },
+    { id: "s6", studentId: "p", subjectId: "Civic Education", term: "first", academicYear: "2024/2025", ca1: 15, ca2: 14, exam: 48, total: 77, grade: "A1", remark: "Excellent", createdAt: "", updatedAt: "" },
+    { id: "s7", studentId: "p", subjectId: "Fine Art", term: "first", academicYear: "2024/2025", ca1: 17, ca2: 16, exam: 55, total: 88, grade: "A1", remark: "Excellent", createdAt: "", updatedAt: "" },
+    { id: "s8", studentId: "p", subjectId: "Physical & Health Education", term: "first", academicYear: "2024/2025", ca1: 18, ca2: 17, exam: 55, total: 90, grade: "A1", remark: "Excellent", createdAt: "", updatedAt: "" },
+  ],
+  psychometricAssessment: {
+    id: "mock_psych",
+    studentId: "preview_student",
+    classId: "JSS 2A",
+    term: "first",
+    academicYear: "2024/2025",
+    ratings: {
+      Punctuality: 5, Attentiveness: 4, Obedience: 5, Resilience: 4,
+      Teamwork: 5, Neatness: 4, Honesty: 5, Leadership: 3,
+      Handwriting: 4, "Drawing/Art": 5, "Sports/Games": 4, "Practical Skills": 4,
+    },
+    createdAt: "",
+    updatedAt: "",
+  },
+  comment: {
+    id: "mock_comment",
+    studentId: "preview_student",
+    classId: "JSS 2A",
+    term: "first",
+    academicYear: "2024/2025",
+    teacherComment: "Oluwafemi has shown remarkable dedication and academic excellence this term. Keep it up!",
+    principalComment: "An outstanding student. I am proud of your achievements. Continue to strive for excellence.",
+    createdAt: "",
+    updatedAt: "",
+  },
+  totalScore: 651,
+  totalPossible: 800,
+  percentage: 81.4,
+  position: 2,
+  totalStudents: 38,
+  classHighest: 673,
+  classAverage: 598,
+  term: "first",
+  academicYear: "2024/2025",
+};
 
 const Icon = ({
   name,
@@ -28,6 +90,24 @@ export const SettingsPage = () => {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const buildPreviewSchool = (): School => ({
+    id: "preview",
+    name: form.name || "Government Secondary School, Ikeja",
+    address: form.address || "No. 45 Allen Avenue, Ikeja, Lagos",
+    email: form.email || "info@gssikeja.edu.ng",
+    phoneNumber: form.phoneNumber || "+234 803 456 7890",
+    motto: form.motto || "Knowledge is Power",
+    principalName: form.principalName || "Mr. Adebayo Johnson",
+    website: form.website,
+    state: form.state || "Lagos",
+    lga: form.lga || "Ikeja",
+    schoolType: form.schoolType,
+    templateId: form.templateId,
+    createdAt: "",
+    updatedAt: "",
+  });
 
   useEffect(() => {
     if (school) {
@@ -314,6 +394,16 @@ export const SettingsPage = () => {
           </div>
         </div>
 
+        {/* Preview button */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowPreview(true)}
+            className="btn-ghost flex items-center gap-2 text-sm border border-outline-variant/30 rounded-xl px-5 py-2.5"
+          >
+            <Icon name="visibility" /> Preview Result Format
+          </button>
+        </div>
+
         {/* Save button bottom */}
         <div className="flex justify-end">
           <button
@@ -338,6 +428,54 @@ export const SettingsPage = () => {
           </button>
         </div>
       </div>
+      {/* Result Format Preview Modal */}
+      {showPreview && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowPreview(false)}
+        >
+          {/* Toolbar */}
+          <div
+            className="flex items-center justify-between px-5 py-3 bg-surface border-b border-outline-variant/20 flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="font-headline font-bold text-primary text-base">
+                Result Format Preview
+              </p>
+              <p className="text-xs text-on-surface-variant capitalize">
+                {form.templateId} template · First Term · 2024/2025
+              </p>
+            </div>
+            <button
+              onClick={() => setShowPreview(false)}
+              className="btn-ghost p-2 rounded-full"
+              aria-label="Close preview"
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+
+          {/* Scrollable preview area */}
+          <div
+            className="flex-1 overflow-auto flex justify-center py-8 px-4"
+            onClick={() => setShowPreview(false)}
+          >
+            <div
+              style={{ zoom: 0.65, transformOrigin: "top center" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {form.templateId === "modern" ? (
+                <ModernResultSheet result={PREVIEW_RESULT} school={buildPreviewSchool()} />
+              ) : form.templateId === "hybrid" ? (
+                <HybridResultSheet result={PREVIEW_RESULT} school={buildPreviewSchool()} />
+              ) : (
+                <ClassicResultSheet result={PREVIEW_RESULT} school={buildPreviewSchool()} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
