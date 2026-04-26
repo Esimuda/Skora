@@ -105,11 +105,11 @@ export const PrincipalDashboard = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {stats.map((stat, idx) => (
-            <div key={idx} className="ledger-card p-6">
-              <div className="flex items-start justify-between mb-4">
-                <span className={`p-3 rounded-xl ${stat.iconBg}`}>
+            <div key={idx} className="ledger-card p-4 sm:p-6">
+              <div className="flex items-start justify-between mb-3 md:mb-4">
+                <span className={`p-2 md:p-3 rounded-xl ${stat.iconBg}`}>
                   <Icon name={stat.icon} />
                 </span>
                 {'alert' in stat && stat.alert && (
@@ -118,10 +118,10 @@ export const PrincipalDashboard = () => {
                   </span>
                 )}
               </div>
-              <p className="text-on-surface-variant text-xs uppercase tracking-widest font-bold">
+              <p className="text-on-surface-variant text-[10px] md:text-xs uppercase tracking-widest font-bold">
                 {stat.label}
               </p>
-              <p className="font-headline font-extrabold text-3xl text-primary mt-1">
+              <p className="font-headline font-extrabold text-2xl md:text-3xl text-primary mt-1">
                 {stat.value}
               </p>
             </div>
@@ -211,8 +211,8 @@ export const PrincipalDashboard = () => {
         </div>
 
         {/* Quick actions */}
-        <div className="ledger-card p-6">
-          <h3 className="font-headline font-bold text-xl text-primary mb-5">Quick Actions</h3>
+        <div className="ledger-card p-4 md:p-6">
+          <h3 className="font-headline font-bold text-lg md:text-xl text-primary mb-4 md:mb-5">Quick Actions</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: 'Approvals', desc: `${pending.length} pending`,    icon: 'verified',  path: '/principal/approvals', highlight: pending.length > 0 },
@@ -223,13 +223,13 @@ export const PrincipalDashboard = () => {
               <button
                 key={qa.path}
                 onClick={() => navigate(qa.path)}
-                className={`p-5 rounded-xl text-left transition-all hover:shadow-card ${
+                className={`p-4 md:p-5 rounded-xl text-left transition-all hover:shadow-card ${
                   qa.highlight
                     ? 'bg-gradient-to-br from-primary to-primary-container text-on-primary'
                     : 'bg-surface-container-low hover:bg-surface-container text-on-surface'
                 }`}
               >
-                <Icon name={qa.icon} className={`text-2xl mb-3 block ${qa.highlight ? 'text-on-primary/80' : 'text-primary'}`} />
+                <Icon name={qa.icon} className={`text-2xl mb-2 md:mb-3 block ${qa.highlight ? 'text-on-primary/80' : 'text-primary'}`} />
                 <p className="font-bold text-sm">{qa.label}</p>
                 <p className={`text-xs mt-0.5 ${qa.highlight ? 'text-on-primary/70' : 'text-on-surface-variant'}`}>
                   {qa.desc}

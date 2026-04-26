@@ -29,9 +29,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { to: '/teacher/subjects',     label: 'Subjects',       icon: 'book' },
     { to: '/teacher/scores',       label: 'Score Entry',    icon: 'edit_note' },
     { to: '/teacher/psychometric', label: 'Psychometrics',  icon: 'psychology' },
-    { to: '/teacher/comments',    label: 'Comments',       icon: 'chat' },
-    { to: '/teacher/attendance',  label: 'Attendance',     icon: 'calendar_today' },
-    { to: '/teacher/submit',      label: 'Submit Results', icon: 'send' },
+    { to: '/teacher/comments',     label: 'Comments',       icon: 'chat' },
+    { to: '/teacher/attendance',   label: 'Attendance',     icon: 'calendar_today' },
+    { to: '/teacher/submit',       label: 'Submit Results', icon: 'send' },
   ];
 
   const principalLinks = [
@@ -49,6 +49,27 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const userName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
   const userRole = isTeacher ? 'Class Teacher' : 'School Principal';
 
+  // Mobile bottom nav — 4 most-used links per role
+  const teacherMobileLinks = [
+    { to: '/teacher/dashboard',  label: 'Home',     icon: 'dashboard' },
+    { to: '/teacher/students',   label: 'Students', icon: 'group' },
+    { to: '/teacher/scores',     label: 'Scores',   icon: 'edit_note' },
+    { to: '/teacher/submit',     label: 'Submit',   icon: 'send' },
+  ];
+  const principalMobileLinks = [
+    { to: '/principal/dashboard', label: 'Home',      icon: 'dashboard' },
+    { to: '/principal/approvals', label: 'Approvals', icon: 'verified', badge: notifCount },
+    { to: '/principal/downloads', label: 'Downloads', icon: 'download' },
+    { to: '/principal/settings',  label: 'Settings',  icon: 'settings' },
+  ];
+  const mobileLinks = isTeacher ? teacherMobileLinks : principalMobileLinks;
+
+  const isLinkActive = (to: string) =>
+    location.pathname === to ||
+    (to !== '/teacher/dashboard' &&
+      to !== '/principal/dashboard' &&
+      location.pathname.startsWith(to));
+
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="px-8 pt-8 pb-10">
@@ -58,21 +79,17 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </p>
       </div>
 
-      <nav className="flex-1 space-y-0.5">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto">
         {navLinks.map((link) => {
-          const isActive =
-            location.pathname === link.to ||
-            (link.to !== '/teacher/dashboard' &&
-              link.to !== '/principal/dashboard' &&
-              location.pathname.startsWith(link.to));
+          const isActive = isLinkActive(link.to);
           return (
             <Link
               key={link.to}
               to={link.to}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center justify-between px-6 py-3 transition-all duration-200 ${
-  isActive ? 'nav-active' : 'nav-inactive hover:translate-x-1'
-}`}
+              className={`flex items-center justify-between px-6 py-3.5 transition-all duration-200 ${
+                isActive ? 'nav-active' : 'nav-inactive hover:translate-x-1'
+              }`}
             >
               <span className="flex items-center gap-4 text-sm font-medium">
                 <Icon name={link.icon} />
@@ -109,7 +126,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <button
               onClick={handleLogout}
               title="Logout"
-              className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
+              className="h-10 w-10 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
             >
               <Icon name="logout" className="text-base" />
             </button>
@@ -134,7 +151,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-surface-container-low flex flex-col shadow-ambient animate-slide-up">
+          <aside className="absolute left-0 top-0 bottom-0 w-[85vw] max-w-72 bg-surface-container-low flex flex-col shadow-ambient animate-slide-up">
             <SidebarContent />
           </aside>
         </div>
@@ -144,13 +161,17 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Topbar */}
-        <header className="h-16 px-6 md:px-8 flex justify-between items-center bg-surface/80 backdrop-blur-md sticky top-0 z-40 shadow-[0px_12px_32px_rgba(7,30,39,0.04)]">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors"
-          >
-            <Icon name="menu" />
-          </button>
+        <header className="h-14 md:h-16 px-4 md:px-8 flex justify-between items-center bg-surface/80 backdrop-blur-md sticky top-0 z-40 shadow-[0px_12px_32px_rgba(7,30,39,0.04)]">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden h-11 w-11 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors"
+            >
+              <Icon name="menu" />
+            </button>
+            {/* Mobile brand */}
+            <span className="md:hidden font-headline font-black text-base text-primary">Skora RMS</span>
+          </div>
 
           <div className="hidden md:flex items-center gap-2 bg-surface-container-low rounded-full px-4 py-2 w-72 group">
             <Icon name="search" className="text-on-surface-variant/60 group-focus-within:text-primary transition-colors" />
@@ -160,23 +181,23 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="hidden sm:flex items-center gap-1.5 text-xs bg-secondary-container/30 text-on-secondary-container px-3 py-1.5 rounded-full font-medium">
               <span className="w-1.5 h-1.5 bg-secondary rounded-full" />
-              Offline Ready
+              <span className="hidden sm:inline">Offline Ready</span>
             </div>
 
-            <button className="relative p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
+            <button className="relative h-11 w-11 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
               <Icon name="notifications" />
               {notifCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full border-2 border-surface" />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface" />
               )}
             </button>
 
-            <div className="h-8 w-px bg-outline-variant/30" />
+            <div className="h-8 w-px bg-outline-variant/30 hidden sm:block" />
 
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="text-right hidden md:block">
                 <p className="text-xs font-bold text-primary leading-tight">{userName}</p>
                 <p className="text-[10px] text-on-surface-variant">{userRole}</p>
               </div>
@@ -188,12 +209,12 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto">
           {children}
         </main>
 
-        {/* Footer */}
-        <footer className="px-8 py-5 border-t border-outline-variant/15 bg-surface-container-low">
+        {/* Footer — desktop only */}
+        <footer className="hidden md:block px-8 py-5 border-t border-outline-variant/15 bg-surface-container-low">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-[11px] text-on-surface-variant">
             <span className="font-headline font-bold text-primary">Skora RMS</span>
             <span>© {new Date().getFullYear()} Skora RMS — The Academic Ledger for Educators</span>
@@ -204,6 +225,42 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
         </footer>
       </div>
+
+      {/* Mobile bottom navigation bar */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-surface-container-low/95 backdrop-blur-md border-t border-outline-variant/15 flex items-stretch"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {mobileLinks.map((link) => {
+          const isActive = isLinkActive(link.to);
+          const badge = 'badge' in link ? (link as { badge?: number }).badge ?? 0 : 0;
+          return (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={`relative flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[56px] transition-colors ${
+                isActive ? 'text-primary' : 'text-on-surface-variant'
+              }`}
+            >
+              <span
+                className="material-symbols-outlined text-[22px] leading-none"
+                style={isActive ? { fontVariationSettings: '"FILL" 1, "wght" 600, "GRAD" 0, "opsz" 24' } : {}}
+              >
+                {link.icon}
+              </span>
+              <span className={`text-[9px] font-bold tracking-wide ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>
+                {link.label}
+              </span>
+              {badge > 0 && (
+                <span className="absolute top-1.5 right-[calc(50%-14px)] h-4 min-w-[16px] bg-error text-on-error text-[9px] font-black rounded-full flex items-center justify-center px-1">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
     </div>
   );
 };

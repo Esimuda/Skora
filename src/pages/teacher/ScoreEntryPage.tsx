@@ -195,7 +195,7 @@ const ScoreEntryPage = () => {
             ) : (
               <div className="ledger-card overflow-hidden">
                 {/* Table header */}
-                <div className="px-6 py-4 bg-surface-container-low flex items-center justify-between flex-wrap gap-3">
+                <div className="px-4 md:px-6 py-4 bg-surface-container-low flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <p className="font-bold text-on-surface">
                       {selectedSubject?.name}
@@ -207,83 +207,123 @@ const ScoreEntryPage = () => {
                     </p>
                     <p className="text-xs text-on-surface-variant mt-0.5">
                       {filledCount} of {students.length} students scored
-                      {savedAt && <span className="ml-2 text-secondary font-medium">· Saved at {savedAt}</span>}
+                      {savedAt && <span className="ml-2 text-secondary font-medium">· Saved {savedAt}</span>}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-on-surface-variant">
-                    <span className="px-2 py-1 bg-surface-container rounded-lg font-bold">CA1 max: 20</span>
-                    <span className="px-2 py-1 bg-surface-container rounded-lg font-bold">CA2 max: 20</span>
-                    <span className="px-2 py-1 bg-surface-container rounded-lg font-bold">Exam max: 60</span>
+                  <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+                    <span className="px-2 py-1 bg-surface-container rounded-lg font-bold">CA1/20</span>
+                    <span className="px-2 py-1 bg-surface-container rounded-lg font-bold">CA2/20</span>
+                    <span className="px-2 py-1 bg-surface-container rounded-lg font-bold">Exam/60</span>
                   </div>
                 </div>
 
-                {/* Column headings */}
-                <div className="grid grid-cols-[2rem_1fr_5rem_5rem_6rem_5rem_6rem] gap-3 px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
-                  <span />
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Student</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">CA1</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">CA2</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Exam</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Total</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Grade</span>
+                {/* ── Desktop table (md+) ── */}
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-[2rem_1fr_5rem_5rem_6rem_5rem_6rem] gap-3 px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
+                    <span />
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Student</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">CA1</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">CA2</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Exam</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Total</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest text-center">Grade</span>
+                  </div>
+                  <div className="divide-y divide-outline-variant/10">
+                    {scores.map((score, idx) => {
+                      const student = students.find((s) => s.id === score.studentId);
+                      if (!student) return null;
+                      const isFilled = score.ca1 !== '' && score.ca2 !== '' && score.exam !== '';
+                      return (
+                        <div
+                          key={score.studentId}
+                          className="grid grid-cols-[2rem_1fr_5rem_5rem_6rem_5rem_6rem] gap-3 items-center px-6 py-3 hover:bg-surface-container-low/40 transition-colors"
+                        >
+                          <span className="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <p className="font-bold text-on-surface text-sm">{student.lastName} {student.firstName}</p>
+                            <p className="text-xs text-on-surface-variant">{student.admissionNumber}</p>
+                          </div>
+                          {(['ca1', 'ca2', 'exam'] as ScoreField[]).map((field) => (
+                            <input
+                              key={field}
+                              type="number"
+                              min={0}
+                              max={field === 'exam' ? 60 : 20}
+                              value={score[field]}
+                              onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
+                              placeholder="—"
+                              className="w-full bg-surface-container-highest border-none rounded-lg px-2 py-2 text-sm text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                            />
+                          ))}
+                          <div className="text-center">
+                            <span className={`font-headline font-extrabold text-lg ${isFilled ? (score.total >= 50 ? 'text-secondary' : 'text-error') : 'text-on-surface-variant/30'}`}>
+                              {isFilled ? score.total : '—'}
+                            </span>
+                          </div>
+                          <div className="text-center">
+                            {isFilled ? (
+                              <span className={`text-xs font-bold px-2 py-1 rounded-full ${score.total >= 75 ? 'badge-validated' : score.total >= 50 ? 'badge-pending' : 'badge-error'}`}>
+                                {score.grade}
+                              </span>
+                            ) : (
+                              <span className="text-on-surface-variant/30 text-sm">—</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="divide-y divide-outline-variant/10">
+                {/* ── Mobile cards (< md) ── */}
+                <div className="md:hidden divide-y divide-outline-variant/10">
                   {scores.map((score, idx) => {
                     const student = students.find((s) => s.id === score.studentId);
                     if (!student) return null;
                     const isFilled = score.ca1 !== '' && score.ca2 !== '' && score.exam !== '';
                     return (
-                      <div
-                        key={score.studentId}
-                        className="grid grid-cols-[2rem_1fr_5rem_5rem_6rem_5rem_6rem] gap-3 items-center px-6 py-3 hover:bg-surface-container-low/40 transition-colors"
-                      >
-                        <span className="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant">
-                          {idx + 1}
-                        </span>
-
-                        <div>
-                          <p className="font-bold text-on-surface text-sm">
-                            {student.lastName} {student.firstName}
-                          </p>
-                          <p className="text-xs text-on-surface-variant">{student.admissionNumber}</p>
-                        </div>
-
-                        {(['ca1', 'ca2', 'exam'] as ScoreField[]).map((field) => (
-                          <input
-                            key={field}
-                            type="number"
-                            min={0}
-                            max={field === 'exam' ? 60 : 20}
-                            value={score[field]}
-                            onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
-                            placeholder="—"
-                            className="w-full bg-surface-container-highest border-none rounded-lg px-2 py-2 text-sm text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
-                          />
-                        ))}
-
-                        <div className="text-center">
-                          <span className={`font-headline font-extrabold text-lg ${
-                            isFilled
-                              ? score.total >= 50 ? 'text-secondary' : 'text-error'
-                              : 'text-on-surface-variant/30'
-                          }`}>
-                            {isFilled ? score.total : '—'}
+                      <div key={score.studentId} className="p-4 space-y-3">
+                        {/* Student row */}
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant flex-shrink-0">
+                            {idx + 1}
                           </span>
-                        </div>
-
-                        <div className="text-center">
-                          {isFilled ? (
-                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                              score.total >= 75 ? 'badge-validated'
-                              : score.total >= 50 ? 'badge-pending'
-                              : 'badge-error'
-                            }`}>
-                              {score.grade}
-                            </span>
-                          ) : (
-                            <span className="text-on-surface-variant/30 text-sm">—</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-on-surface text-sm truncate">{student.lastName} {student.firstName}</p>
+                            <p className="text-xs text-on-surface-variant">{student.admissionNumber}</p>
+                          </div>
+                          {isFilled && (
+                            <div className="text-right flex-shrink-0">
+                              <p className={`font-headline font-extrabold text-xl leading-none ${score.total >= 50 ? 'text-secondary' : 'text-error'}`}>
+                                {score.total}
+                              </p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${score.total >= 75 ? 'badge-validated' : score.total >= 50 ? 'badge-pending' : 'badge-error'}`}>
+                                {score.grade}
+                              </span>
+                            </div>
                           )}
+                        </div>
+                        {/* Score inputs */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['ca1', 'ca2', 'exam'] as ScoreField[]).map((field) => (
+                            <div key={field}>
+                              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+                                {field === 'ca1' ? 'CA1 /20' : field === 'ca2' ? 'CA2 /20' : 'Exam /60'}
+                              </label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={field === 'exam' ? 60 : 20}
+                                value={score[field]}
+                                onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
+                                placeholder="—"
+                                className="w-full bg-surface-container-highest border-none rounded-xl px-2 py-3 text-base text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                              />
+                            </div>
+                          ))}
                         </div>
                       </div>
                     );
@@ -291,19 +331,19 @@ const ScoreEntryPage = () => {
                 </div>
 
                 {/* Footer save */}
-                <div className="px-6 py-4 bg-surface-container-low border-t border-outline-variant/10 flex items-center justify-between">
-                  <p className="text-xs text-on-surface-variant">
-                    Scores are saved per subject. Switch subjects freely.
+                <div className="px-4 md:px-6 py-4 bg-surface-container-low border-t border-outline-variant/10 flex items-center justify-between gap-3">
+                  <p className="text-xs text-on-surface-variant hidden sm:block">
+                    Scores are saved per subject.
                   </p>
                   <button
                     onClick={handleSaveAll}
                     disabled={saving}
-                    className="btn-primary text-sm disabled:opacity-60 flex items-center gap-2"
+                    className="btn-primary text-sm disabled:opacity-60 flex items-center gap-2 w-full sm:w-auto justify-center"
                   >
                     {saving ? (
                       <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</>
                     ) : (
-                      <><Icon name="save" /> Save All</>
+                      <><Icon name="save" /> Save All Scores</>
                     )}
                   </button>
                 </div>

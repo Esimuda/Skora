@@ -388,10 +388,10 @@ export const DownloadsPage = () => {
             {selectedStatus && selectedClassId && (
               <>
                 {/* Class info banner */}
-                <div className="ledger-card p-5 mb-6">
-                  <div className="flex items-center justify-between">
+                <div className="ledger-card p-4 md:p-5 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
-                      <div className="flex items-center gap-3 mb-1">
+                      <div className="flex items-center gap-3 mb-1 flex-wrap">
                         <h2 className="text-xl font-bold text-on-surface">
                           {selectedStatus.className}
                         </h2>
@@ -410,11 +410,11 @@ export const DownloadsPage = () => {
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
                       <button
                         onClick={handlePrintAll}
                         disabled={classResults.length === 0}
-                        className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-50"
+                        className="btn-ghost text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-base">print</span>
                         Print All
@@ -422,17 +422,17 @@ export const DownloadsPage = () => {
                       <button
                         onClick={handleDownloadZip}
                         disabled={classResults.length === 0 || zipping}
-                        className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50"
+                        className="btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {zipping ? (
                           <>
                             <span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-                            Generating PDFs… {classResults.length} students
+                            Generating PDFs…
                           </>
                         ) : (
                           <>
                             <span className="material-symbols-outlined text-base">picture_as_pdf</span>
-                            Download PDFs ({classResults.length} students)
+                            Download PDFs ({classResults.length})
                           </>
                         )}
                       </button>
@@ -536,7 +536,7 @@ export const DownloadsPage = () => {
                           {/* Print button */}
                           <button
                             onClick={() => openResultInNewTab(result)}
-                            className="btn-ghost text-xs px-3 py-1.5 flex-shrink-0"
+                            className="btn-ghost text-xs px-3 py-2.5 flex-shrink-0"
                           >
                             🖨️ Print
                           </button>

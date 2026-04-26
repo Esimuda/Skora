@@ -228,87 +228,65 @@ export const ApprovalsPage = () => {
               {currentList.map((status) => {
                 const stats = getClassStats(status);
                 return (
-                  <div key={`${status.classId}-${status.term}`} className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2 flex-wrap">
-                          <h3 className="font-headline font-bold text-lg text-primary">
-                            {status.className}
-                          </h3>
-                          <span
-                            className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                              status.status === "submitted"
-                                ? "badge-pending"
-                                : status.status === "approved"
-                                  ? "badge-validated"
-                                  : "badge-error"
-                            }`}
-                          >
-                            {status.status === "submitted"
-                              ? "Pending Review"
+                  <div key={`${status.classId}-${status.term}`} className="p-4 md:p-6">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <h3 className="font-headline font-bold text-lg text-primary">
+                          {status.className}
+                        </h3>
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                            status.status === "submitted"
+                              ? "badge-pending"
                               : status.status === "approved"
-                                ? "Approved"
-                                : "Returned"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-on-surface-variant">
-                          Teacher:{" "}
-                          <span className="font-bold text-on-surface">
-                            {status.teacherName}
-                          </span>{" "}
-                          · {status.studentCount} students
-                        </p>
-                        <p className="text-xs text-on-surface-variant/60 mt-1">
-                          First Term · {status.academicYear} · Submitted{" "}
-                          {formatTimeAgo(status.submittedAt)} (
-                          {formatDate(status.submittedAt)})
-                        </p>
-
-                        {stats && (
-                          <div className="flex gap-3 mt-3 flex-wrap">
-                            <span className="text-xs px-2.5 py-1 bg-surface-container-low rounded-lg font-medium text-on-surface-variant">
-                              {stats.count} students
-                            </span>
-                            <span className="text-xs px-2.5 py-1 bg-secondary-container/30 text-on-secondary-container rounded-lg font-medium">
-                              Highest: {stats.highest.toFixed(1)}%
-                            </span>
-                            <span className="text-xs px-2.5 py-1 bg-primary/5 text-primary rounded-lg font-medium">
-                              Average: {stats.average.toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
-
-                        {status.rejectionReason && (
-                          <div className="mt-3 p-3 bg-error-container/30 rounded-xl">
-                            <p className="text-xs text-on-error-container">
-                              <span className="font-bold">
-                                Returned reason:
-                              </span>{" "}
-                              {status.rejectionReason}
-                            </p>
-                          </div>
-                        )}
-                        {status.principalComment && (
-                          <div className="mt-3 p-3 bg-secondary-container/20 rounded-xl">
-                            <p className="text-xs text-on-secondary-container">
-                              <span className="font-bold">Your comment:</span> "
-                              {status.principalComment}"
-                            </p>
-                          </div>
-                        )}
+                                ? "badge-validated"
+                                : "badge-error"
+                          }`}
+                        >
+                          {status.status === "submitted" ? "Pending Review" : status.status === "approved" ? "Approved" : "Returned"}
+                        </span>
                       </div>
+                      <p className="text-sm text-on-surface-variant">
+                        Teacher: <span className="font-bold text-on-surface">{status.teacherName}</span> · {status.studentCount} students
+                      </p>
+                      <p className="text-xs text-on-surface-variant/60 mt-1">
+                        First Term · {status.academicYear} · Submitted {formatTimeAgo(status.submittedAt)} ({formatDate(status.submittedAt)})
+                      </p>
+
+                      {stats && (
+                        <div className="flex gap-2 mt-3 flex-wrap">
+                          <span className="text-xs px-2.5 py-1 bg-surface-container-low rounded-lg font-medium text-on-surface-variant">{stats.count} students</span>
+                          <span className="text-xs px-2.5 py-1 bg-secondary-container/30 text-on-secondary-container rounded-lg font-medium">Highest: {stats.highest.toFixed(1)}%</span>
+                          <span className="text-xs px-2.5 py-1 bg-primary/5 text-primary rounded-lg font-medium">Average: {stats.average.toFixed(1)}%</span>
+                        </div>
+                      )}
+
+                      {status.rejectionReason && (
+                        <div className="mt-3 p-3 bg-error-container/30 rounded-xl">
+                          <p className="text-xs text-on-error-container">
+                            <span className="font-bold">Returned reason:</span> {status.rejectionReason}
+                          </p>
+                        </div>
+                      )}
+                      {status.principalComment && (
+                        <div className="mt-3 p-3 bg-secondary-container/20 rounded-xl">
+                          <p className="text-xs text-on-secondary-container">
+                            <span className="font-bold">Your comment:</span> "{status.principalComment}"
+                          </p>
+                        </div>
+                      )}
 
                       {status.status === "submitted" && (
-                        <div className="flex flex-col gap-2 flex-shrink-0">
+                        <div className="flex gap-2 mt-4">
                           <button
                             onClick={() => openModal(status, "approve")}
-                            className="px-4 py-2 text-sm bg-secondary text-on-secondary rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center gap-2"
+                            className="flex-1 sm:flex-none px-4 py-3 text-sm bg-secondary text-on-secondary rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                           >
                             <Icon name="check" className="text-base" /> Approve
                           </button>
                           <button
                             onClick={() => openModal(status, "reject")}
-                            className="px-4 py-2 text-sm border border-error/30 text-error rounded-xl font-bold hover:bg-error-container/20 transition-colors flex items-center gap-2"
+                            className="flex-1 sm:flex-none px-4 py-3 text-sm border border-error/30 text-error rounded-xl font-bold hover:bg-error-container/20 transition-colors flex items-center justify-center gap-2"
                           >
                             <Icon name="undo" className="text-base" /> Return
                           </button>

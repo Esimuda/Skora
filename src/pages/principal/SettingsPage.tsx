@@ -109,9 +109,9 @@ export const SettingsPage = () => {
     <DashboardLayout>
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">
+            <h2 className="font-headline font-extrabold text-2xl md:text-3xl text-primary tracking-tight">
               School Settings
             </h2>
             <p className="text-on-surface-variant text-sm mt-1">
@@ -121,7 +121,7 @@ export const SettingsPage = () => {
           <button
             onClick={handleSave}
             disabled={saving}
-            className={`btn-primary text-sm disabled:opacity-60 flex items-center gap-2 ${saved ? "from-secondary to-secondary bg-secondary" : ""}`}
+            className={`btn-primary text-sm disabled:opacity-60 flex items-center justify-center gap-2 flex-shrink-0 ${saved ? "from-secondary to-secondary bg-secondary" : ""}`}
           >
             {saving ? (
               <>

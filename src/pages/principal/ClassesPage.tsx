@@ -282,8 +282,8 @@ export const ClassesPage = () => {
 
         {/* Search */}
         {classes.length > 4 && (
-          <div className="flex items-center gap-2 bg-surface-container-lowest rounded-full px-4 py-2 w-72 shadow-card">
-            <Icon name="search" className="text-on-surface-variant/60" />
+          <div className="flex items-center gap-2 bg-surface-container-lowest rounded-full px-4 py-2.5 w-full sm:w-72 shadow-card">
+            <Icon name="search" className="text-on-surface-variant/60 flex-shrink-0" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -371,7 +371,7 @@ export const ClassesPage = () => {
                 </div>
                 <button
                   onClick={() => handleEdit(cls)}
-                  className="w-full py-2 text-xs border border-outline-variant/20 rounded-xl hover:bg-surface-container-low transition-colors text-on-surface-variant font-bold flex items-center justify-center gap-2"
+                  className="w-full py-3 text-sm border border-outline-variant/20 rounded-xl hover:bg-surface-container-low transition-colors text-on-surface-variant font-bold flex items-center justify-center gap-2"
                 >
                   <Icon name="edit" className="text-base" /> Edit Class
                 </button>

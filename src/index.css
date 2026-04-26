@@ -12,6 +12,13 @@
     color: #071e27;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent text size adjustment on orientation change */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Eliminate 300ms tap delay on all interactive elements */
+  a, button, input, select, textarea, label, [role="button"] {
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6,
@@ -30,16 +37,16 @@
 
   .btn-primary {
     @apply bg-gradient-to-br from-primary to-primary-container text-on-primary
-           font-bold rounded-xl px-6 py-3 hover:opacity-90 transition-opacity shadow-ambient;
+           font-bold rounded-xl px-6 py-3 min-h-[44px] hover:opacity-90 transition-opacity shadow-ambient;
   }
 
   .btn-ghost {
     @apply border border-outline-variant/30 text-on-surface-variant font-bold
-           rounded-xl px-6 py-3 hover:bg-surface-container-low transition-colors;
+           rounded-xl px-6 py-3 min-h-[44px] hover:bg-surface-container-low transition-colors;
   }
 
   .input-inset {
-    @apply w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-sm
+    @apply w-full bg-surface-container-highest border-none rounded-xl px-4 py-3.5 text-sm
            text-on-surface placeholder:text-on-surface-variant/50 outline-none
            focus:ring-2 focus:ring-primary-fixed-dim transition-all;
   }

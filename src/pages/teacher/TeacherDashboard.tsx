@@ -96,18 +96,18 @@ export const TeacherDashboard = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {stats.map((stat, idx) => (
-            <div key={idx} className="ledger-card p-6">
-              <div className="flex items-start justify-between mb-4">
-                <span className={`p-3 rounded-xl ${stat.iconBg}`}>
+            <div key={idx} className="ledger-card p-4 sm:p-6">
+              <div className="flex items-start justify-between mb-3 md:mb-4">
+                <span className={`p-2 md:p-3 rounded-xl ${stat.iconBg}`}>
                   <Icon name={stat.icon} />
                 </span>
               </div>
-              <p className="text-on-surface-variant text-xs uppercase tracking-widest font-bold">
+              <p className="text-on-surface-variant text-[10px] md:text-xs uppercase tracking-widest font-bold">
                 {stat.label}
               </p>
-              <p className="font-headline font-extrabold text-3xl text-primary mt-1">
+              <p className="font-headline font-extrabold text-2xl md:text-3xl text-primary mt-1">
                 {stat.value}
               </p>
             </div>

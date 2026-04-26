@@ -193,116 +193,111 @@ export const TeachersPage = () => {
         ) : (
           teachers.length > 0 && (
             <div className="ledger-card overflow-hidden">
-              <div className="px-6 py-4 bg-surface-container-low border-b border-outline-variant/10">
+              <div className="px-4 md:px-6 py-4 bg-surface-container-low border-b border-outline-variant/10">
                 <span className="text-sm font-bold text-on-surface">
-                  {teachers.length} teacher{teachers.length !== 1 ? "s" : ""}{" "}
-                  registered
+                  {teachers.length} teacher{teachers.length !== 1 ? "s" : ""} registered
                 </span>
               </div>
 
-              {/* Column headers */}
-              <div className="grid grid-cols-[2.5rem_1.5fr_1fr_auto_auto] gap-4 px-6 py-3 bg-surface-container-low border-b border-outline-variant/10">
-                <span />
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                  Name
-                </span>
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                  Email
-                </span>
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                  Status
-                </span>
-                <span />
-              </div>
-
-              <div className="divide-y divide-outline-variant/10">
-                {teachers.map((teacher) => (
-                  <div
-                    key={teacher.id}
-                    className="grid grid-cols-[2.5rem_1fr_1fr_auto_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary font-bold text-sm">
-                      {teacher.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-bold text-on-surface text-sm">
-                        {teacher.name}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {classes.filter((c) => c.teacherId === teacher.id)
-                          .length === 0 ? (
-                          <span className="text-xs text-on-surface-variant/50 italic">
-                            No class assigned
-                          </span>
-                        ) : (
-                          classes
-                            .filter((c) => c.teacherId === teacher.id)
-                            .map((c) => (
-                              <span
-                                key={c.id}
-                                className="text-[10px] font-bold px-2 py-0.5 bg-primary/5 text-primary rounded-full"
-                              >
-                                {c.name}
-                              </span>
+              {/* ── Desktop table (md+) ── */}
+              <div className="hidden md:block">
+                <div className="grid grid-cols-[2.5rem_1.5fr_1fr_auto_auto] gap-4 px-6 py-3 bg-surface-container-low border-b border-outline-variant/10">
+                  <span />
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Name</span>
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Email</span>
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Status</span>
+                  <span />
+                </div>
+                <div className="divide-y divide-outline-variant/10">
+                  {teachers.map((teacher) => (
+                    <div key={teacher.id} className="grid grid-cols-[2.5rem_1fr_1fr_auto_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary font-bold text-sm">
+                        {teacher.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-on-surface text-sm">{teacher.name}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {classes.filter((c) => c.teacherId === teacher.id).length === 0 ? (
+                            <span className="text-xs text-on-surface-variant/50 italic">No class assigned</span>
+                          ) : (
+                            classes.filter((c) => c.teacherId === teacher.id).map((c) => (
+                              <span key={c.id} className="text-[10px] font-bold px-2 py-0.5 bg-primary/5 text-primary rounded-full">{c.name}</span>
                             ))
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-on-surface-variant">{teacher.email}</p>
+                      <span className="badge-validated text-[10px]">{teacher.status}</span>
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => handleEdit(teacher)} className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors">
+                          <Icon name="edit" className="text-base" />
+                        </button>
+                        {deleteConfirmId === teacher.id ? (
+                          <div className="flex gap-1 items-center">
+                            <button onClick={() => { deleteTeacher(teacher.id); setDeleteConfirmId(null); }} className="px-2 py-1 text-xs bg-error text-on-error rounded-lg">Confirm</button>
+                            <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 text-xs border border-outline-variant/30 rounded-lg">Cancel</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setDeleteConfirmId(teacher.id)} className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors">
+                            <Icon name="delete" className="text-base" />
+                          </button>
                         )}
                       </div>
                     </div>
-                    <p className="text-sm text-on-surface-variant">
-                      {teacher.email}
-                    </p>
-                    <span className="badge-validated text-[10px]">
-                      {teacher.status}
-                    </span>
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={() => handleEdit(teacher)}
-                        className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors"
-                      >
-                        <Icon name="edit" className="text-base" />
-                      </button>
-                      {deleteConfirmId === teacher.id ? (
-                        <div className="flex gap-1 items-center">
-                          <button
-                            onClick={() => {
-                              deleteTeacher(teacher.id);
-                              setDeleteConfirmId(null);
-                            }}
-                            className="px-2 py-1 text-xs bg-error text-on-error rounded-lg"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="px-2 py-1 text-xs border border-outline-variant/30 rounded-lg"
-                          >
-                            Cancel
-                          </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Mobile cards (< md) ── */}
+              <div className="md:hidden divide-y divide-outline-variant/10">
+                {teachers.map((teacher) => (
+                  <div key={teacher.id} className="p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary font-bold flex-shrink-0">
+                        {teacher.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-on-surface">{teacher.name}</p>
+                          <span className="badge-validated text-[10px]">{teacher.status}</span>
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirmId(teacher.id)}
-                          className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
-                        >
-                          <Icon name="delete" className="text-base" />
-                        </button>
-                      )}
+                        <p className="text-sm text-on-surface-variant mt-0.5 break-all">{teacher.email}</p>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {classes.filter((c) => c.teacherId === teacher.id).length === 0 ? (
+                            <span className="text-xs text-on-surface-variant/50 italic">No class assigned</span>
+                          ) : (
+                            classes.filter((c) => c.teacherId === teacher.id).map((c) => (
+                              <span key={c.id} className="text-[10px] font-bold px-2 py-0.5 bg-primary/5 text-primary rounded-full">{c.name}</span>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    {deleteConfirmId === teacher.id ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => { deleteTeacher(teacher.id); setDeleteConfirmId(null); }} className="flex-1 py-2.5 text-sm bg-error text-on-error rounded-xl font-bold">Confirm Delete</button>
+                        <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant">Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEdit(teacher)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant hover:bg-surface-container-low flex items-center justify-center gap-2 transition-colors">
+                          <Icon name="edit" className="text-base" /> Edit
+                        </button>
+                        <button onClick={() => setDeleteConfirmId(teacher.id)} className="flex-1 py-2.5 text-sm border border-error/30 text-error rounded-xl font-bold hover:bg-error-container/20 flex items-center justify-center gap-2 transition-colors">
+                          <Icon name="delete" className="text-base" /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
 
-              <div className="px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
+              <div className="px-4 md:px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
                 <button
-                  onClick={() => {
-                    setShowForm(true);
-                    setEditingId(null);
-                    setForm({ name: "", email: "" });
-                  }}
+                  onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: "", email: "" }); }}
                   className="text-sm text-primary font-semibold hover:underline flex items-center gap-1"
                 >
-                  <Icon name="person_add" className="text-base" /> Add another
-                  teacher
+                  <Icon name="person_add" className="text-base" /> Add another teacher
                 </button>
               </div>
             </div>

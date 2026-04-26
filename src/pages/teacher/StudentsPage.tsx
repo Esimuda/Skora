@@ -301,91 +301,99 @@ const StudentsPage = () => {
             ) : (
               <div className="ledger-card overflow-hidden">
                 {/* Table header */}
-                <div className="px-6 py-4 bg-surface-container-low flex items-center justify-between gap-4">
+                <div className="px-4 md:px-6 py-4 bg-surface-container-low flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-bold text-on-surface">
                     {classStudents.length} student{classStudents.length !== 1 ? 's' : ''} in{' '}
                     {classes.find((c) => c.id === selectedClassId)?.name}
                   </span>
-                  <div className="flex items-center gap-2 bg-surface-container rounded-full px-3 py-1.5 w-56">
-                    <Icon name="search" className="text-on-surface-variant/60 text-base" />
+                  <div className="flex items-center gap-2 bg-surface-container rounded-full px-3 py-2 flex-1 min-w-[140px] max-w-xs">
+                    <Icon name="search" className="text-on-surface-variant/60 text-base flex-shrink-0" />
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search..."
+                      placeholder="Search students..."
                       className="bg-transparent text-sm outline-none w-full text-on-surface placeholder:text-on-surface-variant/50"
                     />
                   </div>
                 </div>
 
-                {/* Column headers */}
-                <div className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
-                  <span />
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Name</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Admission No.</span>
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest hidden md:block">Parent</span>
-                  <span />
+                {/* ── Desktop table (md+) ── */}
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
+                    <span />
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Name</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Admission No.</span>
+                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Parent</span>
+                    <span />
+                  </div>
+                  <div className="divide-y divide-outline-variant/10">
+                    {filtered.map((student, idx) => (
+                      <div key={student.id} className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors">
+                        <span className="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant">{idx + 1}</span>
+                        <div>
+                          <p className="font-bold text-on-surface text-sm">{student.lastName} {student.firstName}{student.middleName ? ` ${student.middleName}` : ''}</p>
+                          <p className="text-xs text-on-surface-variant mt-0.5">{student.gender === 'male' ? '♂' : '♀'} {student.gender}</p>
+                        </div>
+                        <p className="text-sm text-on-surface-variant font-medium">{student.admissionNumber}</p>
+                        <p className="text-sm text-on-surface-variant">{student.parentName ?? '—'}</p>
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => handleEdit(student)} className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors"><Icon name="edit" className="text-base" /></button>
+                          {deleteConfirmId === student.id ? (
+                            <div className="flex gap-1 items-center">
+                              <button onClick={() => { deleteStudent(student.id); setDeleteConfirmId(null); }} className="px-2 py-1 text-xs bg-error text-on-error rounded-lg">Confirm</button>
+                              <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 text-xs border border-outline-variant/30 rounded-lg">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setDeleteConfirmId(student.id)} className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"><Icon name="delete" className="text-base" /></button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="divide-y divide-outline-variant/10">
+                {/* ── Mobile cards (< md) ── */}
+                <div className="md:hidden divide-y divide-outline-variant/10">
                   {filtered.map((student, idx) => (
-                    <div key={student.id} className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors">
-                      <span className="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <p className="font-bold text-on-surface text-sm">
-                          {student.lastName} {student.firstName}
-                          {student.middleName ? ` ${student.middleName}` : ''}
-                        </p>
-                        <p className="text-xs text-on-surface-variant mt-0.5">
-                          {student.gender === 'male' ? '♂' : '♀'} {student.gender}
-                        </p>
-                      </div>
-                      <p className="text-sm text-on-surface-variant font-medium">
-                        {student.admissionNumber}
-                      </p>
-                      <p className="text-sm text-on-surface-variant hidden md:block">
-                        {student.parentName ?? '—'}
-                      </p>
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => handleEdit(student)}
-                          className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Icon name="edit" className="text-base" />
-                        </button>
-                        {deleteConfirmId === student.id ? (
-                          <div className="flex gap-1 items-center">
-                            <button
-                              onClick={() => { deleteStudent(student.id); setDeleteConfirmId(null); }}
-                              className="px-2 py-1 text-xs bg-error text-on-error rounded-lg"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="px-2 py-1 text-xs border border-outline-variant/30 rounded-lg"
-                            >
-                              Cancel
-                            </button>
+                    <div key={student.id} className="p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <span className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant flex-shrink-0">{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-on-surface">{student.lastName} {student.firstName}{student.middleName ? ` ${student.middleName}` : ''}</p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            <span className="text-xs text-on-surface-variant">{student.admissionNumber}</span>
+                            <span className="text-xs text-on-surface-variant/50">·</span>
+                            <span className="text-xs text-on-surface-variant capitalize">{student.gender}</span>
+                            {student.parentName && (
+                              <>
+                                <span className="text-xs text-on-surface-variant/50">·</span>
+                                <span className="text-xs text-on-surface-variant">{student.parentName}</span>
+                              </>
+                            )}
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirmId(student.id)}
-                            className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Icon name="delete" className="text-base" />
-                          </button>
-                        )}
+                        </div>
                       </div>
+                      {deleteConfirmId === student.id ? (
+                        <div className="flex gap-2">
+                          <button onClick={() => { deleteStudent(student.id); setDeleteConfirmId(null); }} className="flex-1 py-2.5 text-sm bg-error text-on-error rounded-xl font-bold">Confirm Delete</button>
+                          <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant">Cancel</button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEdit(student)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant hover:bg-surface-container-low flex items-center justify-center gap-2 transition-colors">
+                            <Icon name="edit" className="text-base" /> Edit
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(student.id)} className="flex-1 py-2.5 text-sm border border-error/30 text-error rounded-xl font-bold hover:bg-error-container/20 flex items-center justify-center gap-2 transition-colors">
+                            <Icon name="delete" className="text-base" /> Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
+                <div className="px-4 md:px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
                   <button
                     onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...emptyForm }); }}
                     className="text-sm text-primary font-semibold hover:underline flex items-center gap-1"
