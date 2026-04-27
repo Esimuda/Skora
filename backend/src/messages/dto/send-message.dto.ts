@@ -1,0 +1,8 @@
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class SendMessageDto {
+  @IsString() @IsNotEmpty() recipientId: string;
+  @IsString() @IsNotEmpty() content: string;
+  @IsString() @IsOptional() classId?: string;
+  @IsString() @IsOptional() className?: string;
+}
