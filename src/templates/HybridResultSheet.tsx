@@ -104,35 +104,24 @@ export const HybridResultSheet: React.FC<Props> = ({
       </div>
 
       {/* ── STUDENT PARTICULARS ── */}
-      <div style={{ padding: '10px 16mm', display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', backgroundColor: '#f3f4f5', marginBottom: '2px' }}>
-        <div>
-          <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#735c00', fontWeight: 700, letterSpacing: '1.5px', marginBottom: '6px' }}>
-            Student Particulars
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
-            {[
-              ['Full Name', studentFullName.toUpperCase()],
-              ['Admission No.', student.admissionNumber],
-              ['Class / Level', student.classId],
-              ['Term', `${getTermName(term)} Term`],
-              ['Session', academicYear],
-              ['Gender', student.gender === 'male' ? 'Male' : 'Female'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <div style={{ fontSize: '7px', color: '#757682', marginBottom: '1px' }}>{label}</div>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#00113a' }}>{value}</div>
-              </div>
-            ))}
-          </div>
+      <div style={{ padding: '10px 16mm', backgroundColor: '#f3f4f5', marginBottom: '2px' }}>
+        <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#735c00', fontWeight: 700, letterSpacing: '1.5px', marginBottom: '6px' }}>
+          Student Particulars
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
-          <div style={{ width: '62px', height: '76px', backgroundColor: '#edeeef', border: '0.5px solid #c5c6d2', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: '2px' }}>
-            {student.passportPhoto ? (
-              <img src={student.passportPhoto} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: '26px', color: '#c5c6d2' }}>👤</span>
-            )}
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
+          {[
+            ['Full Name', studentFullName.toUpperCase()],
+            ['Admission No.', student.admissionNumber],
+            ['Class / Level', student.classId],
+            ['Term', `${getTermName(term)} Term`],
+            ['Session', academicYear],
+            ['Gender', student.gender === 'male' ? 'Male' : 'Female'],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <div style={{ fontSize: '7px', color: '#757682', marginBottom: '1px' }}>{label}</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#00113a' }}>{value}</div>
+            </div>
+          ))}
         </div>
       </div>
 

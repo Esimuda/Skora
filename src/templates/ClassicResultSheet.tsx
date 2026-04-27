@@ -108,7 +108,7 @@ export const ClassicResultSheet: React.FC<Props> = ({
       </div>
 
       {/* ── STUDENT INFO ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', marginBottom: '10px', backgroundColor: '#f3f4f5', padding: '8px 10px' }}>
+      <div style={{ marginBottom: '10px', backgroundColor: '#f3f4f5', padding: '8px 10px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
           {[
             ['Student Name', studentFullName.toUpperCase()],
@@ -123,13 +123,6 @@ export const ClassicResultSheet: React.FC<Props> = ({
               <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#00113a', marginTop: '1px' }}>{value}</div>
             </div>
           ))}
-        </div>
-        <div style={{ width: '60px', height: '75px', border: '0.5px solid #c5c6d2', backgroundColor: '#edeeef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          {student.passportPhoto ? (
-            <img src={student.passportPhoto} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <span style={{ fontSize: '24px', color: '#c5c6d2' }}>👤</span>
-          )}
         </div>
       </div>
 
