@@ -5,15 +5,23 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import {
-  useDataStore,
-  ComputedStudentResult,
-  SchoolInfo,
+  Term,
+  StudentResult,
+  School,
   Subject,
-} from "@/store/dataStore";
-import { Term, StudentResult, School, PsychometricRating } from "@/types";
+  Class,
+  ClassResult,
+  PsychometricRating,
+  PsychometricAssessment,
+  ResultComment,
+  Score,
+  Student,
+} from "@/types";
 import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
 import { ModernResultSheet } from "@/templates/ModernResultSheet";
 import { HybridResultSheet } from "@/templates/HybridResultSheet";
@@ -21,63 +29,42 @@ import { HybridResultSheet } from "@/templates/HybridResultSheet";
 const CURRENT_TERM: Term = "first";
 const CURRENT_YEAR = "2024/2025";
 
-// ── Adapters ─────────────────────────────────────────────────────────────────
-// Convert store types to the types the template components expect.
+// Shape returned by GET /schools/:schoolId/results/:classId/computed
+interface ApiComputedResult {
+  student: Student;
+  scores: Score[];
+  psychometricAssessment: PsychometricAssessment | null;
+  comment: ResultComment | null;
+  totalScore: number;
+  totalPossible: number;
+  percentage: number;
+  position: number;
+  totalStudents: number;
+  classHighest: number;
+  classAverage: number;
+  term: string;
+  academicYear: string;
+}
+
+// ── Adapter ───────────────────────────────────────────────────────────────────
+// Converts the API computed result into the shape the template components expect.
+// The key transform: scores[].subjectId is a UUID from the DB — templates need the name.
 
 function toStudentResult(
-  r: ComputedStudentResult,
+  r: ApiComputedResult,
   term: Term,
-  academicYear: string,
   subjects: Subject[],
-  className: string,
 ): StudentResult {
   return {
-    student: {
-      ...r.student,
-      classId: className,
-      createdAt: "",
-      updatedAt: "",
-    },
+    student: r.student,
     scores: r.scores.map((s) => ({
-      id: `${s.studentId}_${s.subjectId}`,
-      studentId: s.studentId,
+      ...s,
       subjectId: subjects.find((sub) => sub.id === s.subjectId)?.name ?? s.subjectId,
       term,
-      academicYear,
-      ca1: s.ca1,
-      ca2: s.ca2,
-      exam: s.exam,
-      total: s.total,
-      grade: s.grade,
-      remark: s.remark,
-      createdAt: "",
-      updatedAt: "",
+      academicYear: r.academicYear,
     })),
-    psychometricAssessment: r.psychometric
-      ? {
-          id: `psych_${r.psychometric.studentId}`,
-          studentId: r.psychometric.studentId,
-          classId: r.psychometric.classId,
-          term: r.psychometric.term,
-          academicYear: r.psychometric.academicYear,
-          ratings: r.psychometric.ratings as unknown as Record<string, PsychometricRating>,
-          createdAt: "",
-          updatedAt: "",
-        }
-      : undefined,
-    comment: r.comment
-      ? {
-          id: `comment_${r.comment.studentId}`,
-          studentId: r.comment.studentId,
-          classId: r.comment.classId,
-          term: r.comment.term,
-          academicYear: r.comment.academicYear,
-          teacherComment: r.comment.teacherComment,
-          principalComment: r.comment.principalComment,
-          createdAt: "",
-          updatedAt: "",
-        }
-      : undefined,
+    psychometricAssessment: r.psychometricAssessment ?? undefined,
+    comment: r.comment ?? undefined,
     totalScore: r.totalScore,
     totalPossible: r.totalPossible,
     percentage: r.percentage,
@@ -86,47 +73,24 @@ function toStudentResult(
     classHighest: r.classHighest,
     classAverage: r.classAverage,
     term,
-    academicYear,
+    academicYear: r.academicYear,
   };
 }
 
-function toSchool(info: SchoolInfo): School {
-  return {
-    id: info.id,
-    name: info.name,
-    address: info.address,
-    email: info.email,
-    phoneNumber: info.phoneNumber,
-    motto: info.motto,
-    logo: info.logo,
-    principalName: info.principalName,
-    website: info.website,
-    state: info.state,
-    lga: info.lga,
-    schoolType: info.schoolType as "public" | "private" | "mission" | undefined,
-    templateId: info.templateId,
-    createdAt: "",
-    updatedAt: "",
-  };
-}
-
-// ── Template-aware React component (used in the print zone) ───────────────────
+// ── Template-aware React component ────────────────────────────────────────────
 
 function TemplateResultSheet({
   result,
-  schoolInfo,
+  school,
   subjects,
-  className,
 }: {
-  result: ComputedStudentResult;
-  schoolInfo: SchoolInfo;
+  result: ApiComputedResult;
+  school: School;
   subjects: Subject[];
-  className: string;
 }) {
-  const studentResult = toStudentResult(result, CURRENT_TERM, CURRENT_YEAR, subjects, className);
-  const school = toSchool(schoolInfo);
+  const studentResult = toStudentResult(result, CURRENT_TERM, subjects);
 
-  switch (schoolInfo.templateId) {
+  switch (school.templateId) {
     case "modern":
       return <ModernResultSheet result={studentResult} school={school} />;
     case "hybrid":
@@ -136,20 +100,17 @@ function TemplateResultSheet({
   }
 }
 
-// ── HTML builder (used for new-tab printing and ZIP download) ─────────────────
-// Uses renderToStaticMarkup so the correct template component determines the HTML.
+// ── HTML builder (new-tab print) ──────────────────────────────────────────────
 
 function buildResultHTML(
-  result: ComputedStudentResult,
-  schoolInfo: SchoolInfo,
+  result: ApiComputedResult,
+  school: School,
   subjects: Subject[],
-  className: string,
 ): string {
-  const studentResult = toStudentResult(result, CURRENT_TERM, CURRENT_YEAR, subjects, className);
-  const school = toSchool(schoolInfo);
+  const studentResult = toStudentResult(result, CURRENT_TERM, subjects);
 
   let markup: string;
-  switch (schoolInfo.templateId) {
+  switch (school.templateId) {
     case "modern":
       markup = renderToStaticMarkup(<ModernResultSheet result={studentResult} school={school} />);
       break;
@@ -169,9 +130,9 @@ function buildResultHTML(
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #f0f0f0; display: flex; justify-content: center; padding: 20px; }
+    @page { size: A4 portrait; margin: 0; }
     @media print {
       body { background: white; padding: 0; }
-      @page { size: A4 portrait; margin: 0; }
     }
   </style>
 </head>
@@ -183,14 +144,11 @@ function buildResultHTML(
 }
 
 // ── PDF generator ─────────────────────────────────────────────────────────────
-// Renders the correct template component into a hidden DOM node, captures it
-// with html2canvas, and converts the canvas to an A4 PDF blob.
 
 async function generateStudentPDF(
-  result: ComputedStudentResult,
-  schoolInfo: SchoolInfo,
+  result: ApiComputedResult,
+  school: School,
   subjects: Subject[],
-  className: string,
 ): Promise<Blob> {
   const container = document.createElement("div");
   container.style.cssText =
@@ -199,19 +157,12 @@ async function generateStudentPDF(
 
   const root = ReactDOM.createRoot(container);
 
-  // flushSync forces a synchronous DOM update so html2canvas sees the full render
   flushSync(() => {
     root.render(
-      <TemplateResultSheet
-        result={result}
-        schoolInfo={schoolInfo}
-        subjects={subjects}
-        className={className}
-      />,
+      <TemplateResultSheet result={result} school={school} subjects={subjects} />,
     );
   });
 
-  // Brief pause so any embedded images (logo, passport photo) can finish loading
   await new Promise((r) => setTimeout(r, 200));
 
   const el = container.firstElementChild as HTMLElement;
@@ -244,59 +195,85 @@ const formatPosition = (pos: number) => {
 // ── Main Downloads Page ───────────────────────────────────────────────────────
 
 export const DownloadsPage = () => {
-  const { school, classes, resultStatuses, computeClassResults, getSubjectsByClass } =
-    useDataStore();
+  const { user } = useAuthStore();
+  const schoolId = user?.schoolId ?? "";
 
+  const [school, setSchool] = useState<School | null>(null);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [approvedStatuses, setApprovedStatuses] = useState<ClassResult[]>([]);
+  const [classResults, setClassResults] = useState<ApiComputedResult[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadingResults, setLoadingResults] = useState(false);
   const [zipping, setZipping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const approvedStatuses = resultStatuses.filter(
-    (r) =>
-      r.status === "approved" &&
-      r.term === CURRENT_TERM &&
-      r.academicYear === CURRENT_YEAR,
-  );
+  // On mount: fetch school info, classes, and approved result statuses in parallel
+  useEffect(() => {
+    if (!schoolId) return;
+    setLoading(true);
+    Promise.all([
+      api.get<School>(`/schools/${schoolId}`),
+      api.get<Class[]>(`/schools/${schoolId}/classes`),
+      api.get<ClassResult[]>(
+        `/schools/${schoolId}/results?status=approved&term=${CURRENT_TERM}&academicYear=${encodeURIComponent(CURRENT_YEAR)}`,
+      ),
+    ])
+      .then(([schoolData, classesData, statusesData]) => {
+        setSchool(schoolData);
+        setClasses(classesData);
+        setApprovedStatuses(statusesData);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [schoolId]);
+
+  // When a class is selected: fetch its computed results and subjects in parallel
+  useEffect(() => {
+    if (!selectedClassId || !schoolId) {
+      setClassResults([]);
+      setSubjects([]);
+      return;
+    }
+    setLoadingResults(true);
+    Promise.all([
+      api.get<ApiComputedResult[]>(
+        `/schools/${schoolId}/results/${selectedClassId}/computed?term=${CURRENT_TERM}&academicYear=${encodeURIComponent(CURRENT_YEAR)}`,
+      ),
+      api.get<Subject[]>(`/schools/${schoolId}/classes/${selectedClassId}/subjects`),
+    ])
+      .then(([results, subjectsData]) => {
+        setClassResults(results);
+        setSubjects(subjectsData);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoadingResults(false));
+  }, [selectedClassId, schoolId]);
 
   const selectedStatus = approvedStatuses.find((r) => r.classId === selectedClassId);
-  const classResults = selectedClassId
-    ? computeClassResults(selectedClassId, CURRENT_TERM, CURRENT_YEAR)
-    : [];
-
-  const schoolInfo: SchoolInfo = school ?? {
-    id: "default",
-    name: "School Name",
-    address: "School Address",
-    email: "school@email.com",
-    phoneNumber: "0800000000",
-    templateId: "classic",
-  };
-
   const getClassName = (classId: string) =>
     classes.find((c) => c.id === classId)?.name ?? classId;
 
-  const openResultInNewTab = (result: ComputedStudentResult) => {
-    const subjects = getSubjectsByClass(result.student.classId);
-    const className = getClassName(result.student.classId);
-    const html = buildResultHTML(result, schoolInfo, subjects, className);
+  const openResultInNewTab = (result: ApiComputedResult) => {
+    if (!school) return;
+    const html = buildResultHTML(result, school, subjects);
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
   };
 
   const handleDownloadZip = async () => {
-    if (classResults.length === 0) return;
+    if (!school || classResults.length === 0) return;
     setZipping(true);
 
     const zip = new JSZip();
-    const subjects = getSubjectsByClass(selectedClassId);
     const className = getClassName(selectedClassId);
     const safeName = className.replace(/\s+/g, "_");
-
-    // All PDFs go into one flat folder inside the ZIP
     const folder = zip.folder(safeName)!;
 
     for (const result of classResults) {
-      const pdfBlob = await generateStudentPDF(result, schoolInfo, subjects, className);
+      const pdfBlob = await generateStudentPDF(result, school, subjects);
       const fileName =
         `${result.student.lastName}_${result.student.firstName}_${result.student.admissionNumber}.pdf`.replace(
           /\s+/g,
@@ -325,6 +302,16 @@ export const DownloadsPage = () => {
     });
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-32">
+          <span className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto">
@@ -334,11 +321,18 @@ export const DownloadsPage = () => {
           <p className="text-on-surface-variant mt-1">
             Print result sheets for approved classes using the{" "}
             <span className="font-semibold capitalize text-primary">
-              {schoolInfo.templateId}
+              {school?.templateId ?? "classic"}
             </span>{" "}
             template
           </p>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mb-6 bg-error-container border border-error/20 rounded-xl p-4 text-on-error-container text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Approval gate info */}
         <div className="mb-6 bg-secondary-container/30 border border-secondary/20 rounded-xl p-4 flex items-center gap-3">
@@ -370,9 +364,7 @@ export const DownloadsPage = () => {
               </label>
               <select
                 value={selectedClassId}
-                onChange={(e) => {
-                  setSelectedClassId(e.target.value);
-                }}
+                onChange={(e) => setSelectedClassId(e.target.value)}
                 className="input-inset"
               >
                 <option value="">— Choose a class —</option>
@@ -398,22 +390,23 @@ export const DownloadsPage = () => {
                         <span className="badge-validated">✅ Approved</span>
                       </div>
                       <p className="text-sm text-on-surface-variant">
-                        First Term · {CURRENT_YEAR} · {classResults.length} students ·
+                        First Term · {CURRENT_YEAR} ·{" "}
+                        {loadingResults ? "…" : classResults.length} students ·
                         Teacher: {selectedStatus.teacherName}
                       </p>
                       <p className="text-xs text-on-surface-variant/60 mt-1">
                         Approved on {formatDate(selectedStatus.approvedAt)}
                       </p>
-                      {selectedStatus.principalComment && (
+                      {selectedStatus.principalNote && (
                         <p className="text-sm text-on-secondary-container mt-1 italic">
-                          Your comment: "{selectedStatus.principalComment}"
+                          Your note: "{selectedStatus.principalNote}"
                         </p>
                       )}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
                       <button
                         onClick={handlePrintAll}
-                        disabled={classResults.length === 0}
+                        disabled={loadingResults || classResults.length === 0}
                         className="btn-ghost text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-base">print</span>
@@ -421,7 +414,7 @@ export const DownloadsPage = () => {
                       </button>
                       <button
                         onClick={handleDownloadZip}
-                        disabled={classResults.length === 0 || zipping}
+                        disabled={loadingResults || classResults.length === 0 || zipping}
                         className="btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {zipping ? (
@@ -441,7 +434,11 @@ export const DownloadsPage = () => {
                 </div>
 
                 {/* Student list */}
-                {classResults.length === 0 ? (
+                {loadingResults ? (
+                  <div className="ledger-card flex items-center justify-center py-16">
+                    <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  </div>
+                ) : classResults.length === 0 ? (
                   <div className="ledger-card flex flex-col items-center justify-center py-16 text-on-surface-variant">
                     <div className="text-4xl mb-3">👥</div>
                     <p>No student results found for this class</p>
@@ -514,12 +511,12 @@ export const DownloadsPage = () => {
                             <span
                               title="Psychometric"
                               className={`text-xs px-1.5 py-0.5 rounded ${
-                                result.psychometric
+                                result.psychometricAssessment
                                   ? "bg-secondary-container/40 text-on-secondary-container"
                                   : "bg-tertiary-fixed text-on-tertiary-fixed-variant"
                               }`}
                             >
-                              🧠 {result.psychometric ? "✓" : "—"}
+                              🧠 {result.psychometricAssessment ? "✓" : "—"}
                             </span>
                             <span
                               title="Comment"
@@ -546,17 +543,17 @@ export const DownloadsPage = () => {
                   </div>
                 )}
 
-                {/* Print zone — hidden on screen, used as React-rendered template preview */}
+                {/* Hidden print zone — pre-renders templates for PDF generation */}
                 <div style={{ display: "none" }} aria-hidden>
-                  {classResults.map((result) => (
-                    <TemplateResultSheet
-                      key={result.student.id}
-                      result={result}
-                      schoolInfo={schoolInfo}
-                      subjects={getSubjectsByClass(selectedClassId)}
-                      className={getClassName(selectedClassId)}
-                    />
-                  ))}
+                  {school &&
+                    classResults.map((result) => (
+                      <TemplateResultSheet
+                        key={result.student.id}
+                        result={result}
+                        school={school}
+                        subjects={subjects}
+                      />
+                    ))}
                 </div>
               </>
             )}
