@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: skora-backend
+    env: node
+    region: frankfurt        # closest available to West Africa
+    plan: starter            # free tier spins down after 15 min — use starter for a school app
+    rootDir: .               # this file lives inside /backend, so . is correct
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false          # set in Render dashboard — do not hard-code secrets here
+      - key: DB_PORT
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure random value
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        sync: false          # set to your Vercel URL in the dashboard
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
