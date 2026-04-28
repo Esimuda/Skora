@@ -1,1 +1,0 @@
-{"version":3,"file":"upsert-scores-bulk.dto.js","sourceRoot":"","sources":["../../../src/scores/dto/upsert-scores-bulk.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,yDAAyC;AACzC,qDAA0D;AAC1D,yDAAoD;AAEpD,MAAa,mBAAmB;CAK/B;AALD,kDAKC;AADC;IAHC,IAAA,yBAAO,GAAE;IACT,IAAA,gCAAc,EAAC,EAAE,IAAI,EAAE,IAAI,EAAE,CAAC;IAC9B,IAAA,wBAAI,EAAC,GAAG,EAAE,CAAC,iCAAc,CAAC;;mDACF"}

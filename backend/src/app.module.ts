@@ -51,8 +51,11 @@ import { HealthModule } from './health/health.module';
         password: config.get('DB_PASSWORD', ''),
         database: config.get('DB_DATABASE', 'skora_rms'),
         autoLoadEntities: true,
-        // synchronize is safe in dev; in production use `npm run migration:run`
-        synchronize: config.get('NODE_ENV') !== 'production',
+        // In production set DB_SYNCHRONIZE=true for first boot to create tables,
+        // then remove it. After that, use migrations for schema changes.
+        synchronize:
+          config.get('NODE_ENV') !== 'production' ||
+          config.get('DB_SYNCHRONIZE') === 'true',
         ssl: { rejectUnauthorized: false },
         logging: config.get('NODE_ENV') === 'development',
         migrationsRun: config.get('NODE_ENV') === 'production',
