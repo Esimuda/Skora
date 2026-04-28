@@ -1,7 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique, Index } from 'typeorm';
 
 @Entity('psychometric_assessments')
 @Unique(['studentId', 'classId', 'term', 'academicYear'])
+@Index(['classId', 'term', 'academicYear'])
+@Index(['schoolId', 'term'])
 export class PsychometricAssessment {
   @PrimaryGeneratedColumn('uuid')
   id: string;

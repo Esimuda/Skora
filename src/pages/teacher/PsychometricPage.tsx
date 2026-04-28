@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useDataStore } from '@/store/dataStore';
+import { useAuthStore } from '@/store/authStore';
+import { api } from '@/lib/api';
 import { DEFAULT_PSYCHOMETRIC_SKILLS, PSYCHOMETRIC_RATING_LABELS } from '@/types';
-import { Term } from '@/types';
-
-const CURRENT_TERM: Term = 'first';
-const CURRENT_YEAR = '2024/2025';
+import { Class, Student, Term } from '@/types';
 
 const SCORES = [1, 2, 3, 4, 5];
 
@@ -29,38 +27,62 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
 );
 
-export const PsychometricPage = () => {
-  const { classes, getStudentsByClass, savePsychometric, getPsychometric } = useDataStore();
+interface PsychometricEntry {
+  id?: string;
+  studentId: string;
+  classId: string;
+  term: string;
+  academicYear: string;
+  ratings: Record<string, number>;
+}
 
+export const PsychometricPage = () => {
+  const user = useAuthStore((s) => s.user);
+  const schoolId = user?.schoolId ?? '';
+
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [psychometrics, setPsychometrics] = useState<PsychometricEntry[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [term, setTerm] = useState<Term>('first');
+  const [academicYear, setAcademicYear] = useState('2024/2025');
   const [activeCategory, setActiveCategory] = useState<'affective' | 'psychomotor'>('affective');
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedStudents, setSavedStudents] = useState<Set<string>>(new Set());
-
-  const students = getStudentsByClass(selectedClassId);
-  const selectedStudent = students.find((s) => s.id === selectedStudentId);
-
-  const affectiveSkills = DEFAULT_PSYCHOMETRIC_SKILLS.filter((s) => s.category === 'affective');
-  const psychomotorSkills = DEFAULT_PSYCHOMETRIC_SKILLS.filter((s) => s.category === 'psychomotor');
-  const currentSkills = activeCategory === 'affective' ? affectiveSkills : psychomotorSkills;
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedClassId) return;
-    const saved = new Set<string>();
-    getStudentsByClass(selectedClassId).forEach((s) => {
-      const entry = getPsychometric(s.id, selectedClassId, CURRENT_TERM, CURRENT_YEAR);
-      if (entry && Object.keys(entry.ratings).length > 0) saved.add(s.id);
-    });
-    setSavedStudents(saved);
-    setSelectedStudentId('');
-    setRatings({});
-  }, [selectedClassId]);
+    if (!schoolId) return;
+    api.get<Class[]>(`/schools/${schoolId}/classes`)
+      .then(setClasses)
+      .catch(() => {})
+      .finally(() => setLoadingClasses(false));
+  }, [schoolId]);
 
   useEffect(() => {
-    if (!selectedStudentId || !selectedClassId) { setRatings({}); return; }
-    const entry = getPsychometric(selectedStudentId, selectedClassId, CURRENT_TERM, CURRENT_YEAR);
+    if (!selectedClassId || !schoolId) { setStudents([]); setPsychometrics([]); setSavedStudents(new Set()); return; }
+    setLoadingStudents(true);
+    Promise.all([
+      api.get<Student[]>(`/schools/${schoolId}/classes/${selectedClassId}/students`),
+      api.get<PsychometricEntry[]>(`/schools/${schoolId}/psychometric/by-class/${selectedClassId}?term=${term}&academicYear=${encodeURIComponent(academicYear)}`),
+    ]).then(([stu, psycho]) => {
+      setStudents(stu);
+      setPsychometrics(psycho);
+      const saved = new Set<string>(psycho.filter((p) => p.ratings && Object.keys(p.ratings).length > 0).map((p) => p.studentId));
+      setSavedStudents(saved);
+      setSelectedStudentId('');
+      setRatings({});
+    }).catch(() => setStudents([]))
+      .finally(() => setLoadingStudents(false));
+  }, [selectedClassId, term, academicYear, schoolId]);
+
+  useEffect(() => {
+    if (!selectedStudentId) { setRatings({}); return; }
+    const entry = psychometrics.find((p) => p.studentId === selectedStudentId);
     if (entry?.ratings) {
       const numericRatings: Record<string, number> = {};
       for (const [key, val] of Object.entries(entry.ratings)) {
@@ -74,29 +96,38 @@ export const PsychometricPage = () => {
     setSaveStatus('idle');
   }, [selectedStudentId]);
 
+  const affectiveSkills = DEFAULT_PSYCHOMETRIC_SKILLS.filter((s) => s.category === 'affective');
+  const psychomotorSkills = DEFAULT_PSYCHOMETRIC_SKILLS.filter((s) => s.category === 'psychomotor');
+  const currentSkills = activeCategory === 'affective' ? affectiveSkills : psychomotorSkills;
+
   const handleRate = (skillId: string, score: number) => {
     setRatings((prev) => ({ ...prev, [skillId]: score }));
     setSaveStatus('idle');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedStudentId || !selectedClassId) return;
     setSaveStatus('saving');
-    const stringRatings: Record<string, string> = {};
-    for (const [key, val] of Object.entries(ratings)) {
-      stringRatings[key] = String(val);
-    }
-    savePsychometric({
-      studentId: selectedStudentId,
-      classId: selectedClassId,
-      term: CURRENT_TERM,
-      academicYear: CURRENT_YEAR,
-      ratings: stringRatings,
-    });
-    setTimeout(() => {
+    setApiError(null);
+    try {
+      const saved = await api.post<PsychometricEntry>(`/schools/${schoolId}/psychometric`, {
+        studentId: selectedStudentId,
+        classId: selectedClassId,
+        term,
+        academicYear,
+        ratings,
+      });
+      setPsychometrics((prev) => {
+        const idx = prev.findIndex((p) => p.studentId === selectedStudentId);
+        if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
+        return [...prev, saved];
+      });
       setSaveStatus('saved');
       setSavedStudents((prev) => new Set([...prev, selectedStudentId]));
-    }, 400);
+    } catch (e: any) {
+      setApiError(e.message ?? 'Failed to save');
+      setSaveStatus('idle');
+    }
   };
 
   const handleNextStudent = () => {
@@ -104,6 +135,7 @@ export const PsychometricPage = () => {
     if (idx < students.length - 1) setSelectedStudentId(students[idx + 1].id);
   };
 
+  const selectedStudent = students.find((s) => s.id === selectedStudentId);
   const totalSkills = DEFAULT_PSYCHOMETRIC_SKILLS.length;
   const ratedCount = Object.keys(ratings).length;
   const completionPct = totalSkills > 0 ? Math.round((ratedCount / totalSkills) * 100) : 0;
@@ -114,12 +146,8 @@ export const PsychometricPage = () => {
 
         {/* Header */}
         <div>
-          <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">
-            Psychometric Assessment
-          </h2>
-          <p className="text-on-surface-variant text-sm mt-1">
-            Score each student 1–5 on affective and psychomotor skills
-          </p>
+          <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Psychometric Assessment</h2>
+          <p className="text-on-surface-variant text-sm mt-1">Score each student 1–5 on affective and psychomotor skills</p>
         </div>
 
         {/* Score scale */}
@@ -131,21 +159,37 @@ export const PsychometricPage = () => {
           ))}
         </div>
 
-        {/* Class selector */}
-        <div className="ledger-card p-5">
-          <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
-            Select Class
-          </label>
-          <select
-            value={selectedClassId}
-            onChange={(e) => setSelectedClassId(e.target.value)}
-            className="input-inset"
-          >
-            <option value="">— Choose a class —</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+        {apiError && (
+          <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{apiError}</div>
+        )}
+
+        {/* Selectors */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="ledger-card p-5">
+            <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Select Class</label>
+            {loadingClasses ? (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm">
+                <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> Loading...
+              </div>
+            ) : (
+              <select value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} className="input-inset">
+                <option value="">— Choose a class —</option>
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+          </div>
+          <div className="ledger-card p-5">
+            <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Term</label>
+            <select value={term} onChange={(e) => setTerm(e.target.value as Term)} className="input-inset">
+              <option value="first">First Term</option>
+              <option value="second">Second Term</option>
+              <option value="third">Third Term</option>
+            </select>
+          </div>
+          <div className="ledger-card p-5">
+            <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Academic Year</label>
+            <input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="e.g. 2024/2025" className="input-inset" />
+          </div>
         </div>
 
         {!selectedClassId ? (
@@ -153,15 +197,17 @@ export const PsychometricPage = () => {
             <Icon name="psychology" className="text-5xl text-outline/30 mb-4" />
             <p className="font-headline font-bold text-lg">Select a class to begin</p>
           </div>
+        ) : loadingStudents ? (
+          <div className="flex items-center justify-center py-16 text-on-surface-variant">
+            <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin mr-3" /> Loading...
+          </div>
         ) : (
           <>
             {/* Class progress */}
             <div className="ledger-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-on-surface">Class Progress</span>
-                <span className="text-sm text-on-surface-variant">
-                  {savedStudents.size} of {students.length} students scored
-                </span>
+                <span className="text-sm text-on-surface-variant">{savedStudents.size} of {students.length} students scored</span>
               </div>
               <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
                 <div
@@ -181,9 +227,7 @@ export const PsychometricPage = () => {
                   </h3>
                 </div>
                 {students.length === 0 ? (
-                  <div className="p-6 text-center text-on-surface-variant text-sm">
-                    No students in this class yet
-                  </div>
+                  <div className="p-6 text-center text-on-surface-variant text-sm">No students in this class yet</div>
                 ) : (
                   <div className="divide-y divide-outline-variant/10 overflow-y-auto max-h-[500px]">
                     {students.map((student) => {
@@ -193,22 +237,14 @@ export const PsychometricPage = () => {
                         <button
                           key={student.id}
                           onClick={() => setSelectedStudentId(student.id)}
-                          className={`w-full text-left px-5 py-3 transition-colors ${
-                            isSelected
-                              ? 'bg-surface-container-low border-l-4 border-primary'
-                              : 'border-l-4 border-transparent hover:bg-surface-container-low/50'
-                          }`}
+                          className={`w-full text-left px-5 py-3 transition-colors ${isSelected ? 'bg-surface-container-low border-l-4 border-primary' : 'border-l-4 border-transparent hover:bg-surface-container-low/50'}`}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-bold text-on-surface">
-                                {student.lastName} {student.firstName}
-                              </p>
+                              <p className="text-sm font-bold text-on-surface">{student.lastName} {student.firstName}</p>
                               <p className="text-xs text-on-surface-variant">{student.admissionNumber}</p>
                             </div>
-                            {isSaved && (
-                              <Icon name="check_circle" className="text-secondary text-base flex-shrink-0" />
-                            )}
+                            {isSaved && <Icon name="check_circle" className="text-secondary text-base flex-shrink-0" />}
                           </div>
                         </button>
                       );
@@ -226,7 +262,6 @@ export const PsychometricPage = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Student header */}
                     <div className="p-5 border-b border-outline-variant/10 bg-surface-container-low">
                       <div className="flex items-center justify-between">
                         <div>
@@ -244,21 +279,15 @@ export const PsychometricPage = () => {
                           <button
                             onClick={handleSave}
                             disabled={saveStatus === 'saving' || ratedCount === 0}
-                            className={`btn-primary text-sm disabled:opacity-50 flex items-center gap-2 ${
-                              saveStatus === 'saved' ? 'bg-secondary from-secondary to-secondary' : ''
-                            }`}
+                            className={`btn-primary text-sm disabled:opacity-50 flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-secondary from-secondary to-secondary' : ''}`}
                           >
                             <Icon name={saveStatus === 'saved' ? 'check' : 'save'} />
                             {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
                           </button>
                         </div>
                       </div>
-                      {/* Progress bar */}
                       <div className="mt-3 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{ width: `${completionPct}%` }}
-                        />
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${completionPct}%` }} />
                       </div>
                     </div>
 
@@ -268,38 +297,28 @@ export const PsychometricPage = () => {
                         { key: 'affective', label: 'Affective Domain', icon: 'psychology', count: affectiveSkills.length },
                         { key: 'psychomotor', label: 'Psychomotor Domain', icon: 'directions_run', count: psychomotorSkills.length },
                       ] as const).map((tab) => {
-                        const ratedInTab = (tab.key === 'affective' ? affectiveSkills : psychomotorSkills)
-                          .filter((sk) => ratings[sk.id] !== undefined).length;
+                        const ratedInTab = (tab.key === 'affective' ? affectiveSkills : psychomotorSkills).filter((sk) => ratings[sk.id] !== undefined).length;
                         return (
                           <button
                             key={tab.key}
                             onClick={() => setActiveCategory(tab.key)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-bold transition-colors ${
-                              activeCategory === tab.key
-                                ? 'text-primary border-b-2 border-primary bg-surface-container-low/50'
-                                : 'text-on-surface-variant hover:bg-surface-container-low/30'
-                            }`}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-bold transition-colors ${activeCategory === tab.key ? 'text-primary border-b-2 border-primary bg-surface-container-low/50' : 'text-on-surface-variant hover:bg-surface-container-low/30'}`}
                           >
                             <Icon name={tab.icon} className="text-base" />
                             {tab.label}
-                            <span className="text-xs font-normal text-on-surface-variant">
-                              ({ratedInTab}/{tab.count})
-                            </span>
+                            <span className="text-xs font-normal text-on-surface-variant">({ratedInTab}/{tab.count})</span>
                           </button>
                         );
                       })}
                     </div>
 
-                    {/* Skills */}
                     <div className="p-5 space-y-5">
                       {currentSkills.map((skill) => (
                         <div key={skill.id}>
                           <div className="flex items-center justify-between mb-2">
                             <div>
                               <p className="text-sm font-bold text-on-surface">{skill.name}</p>
-                              {skill.description && (
-                                <p className="text-xs text-on-surface-variant">{skill.description}</p>
-                              )}
+                              {skill.description && <p className="text-xs text-on-surface-variant">{skill.description}</p>}
                             </div>
                             {ratings[skill.id] !== undefined && (
                               <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${SCORE_COLORS[ratings[skill.id]]}`}>
@@ -314,11 +333,7 @@ export const PsychometricPage = () => {
                                 <button
                                   key={score}
                                   onClick={() => handleRate(skill.id, score)}
-                                  className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
-                                    isSelected
-                                      ? `${SCORE_SELECTED[score]} border-transparent`
-                                      : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/30 hover:text-primary'
-                                  }`}
+                                  className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${isSelected ? `${SCORE_SELECTED[score]} border-transparent` : 'border-outline-variant/20 text-on-surface-variant hover:border-primary/30 hover:text-primary'}`}
                                 >
                                   {score}
                                 </button>
@@ -329,7 +344,6 @@ export const PsychometricPage = () => {
                       ))}
                     </div>
 
-                    {/* Next student */}
                     <div className="px-5 pb-5">
                       <button
                         onClick={() => { handleSave(); setTimeout(handleNextStudent, 500); }}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDataStore } from "@/store/dataStore";
+import { useAuthStore } from "@/store/authStore";
+import { api } from "@/lib/api";
 import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
 import { ModernResultSheet } from "@/templates/ModernResultSheet";
 import { HybridResultSheet } from "@/templates/HybridResultSheet";
@@ -74,6 +76,7 @@ const Icon = ({
 
 export const SettingsPage = () => {
   const { school, setSchool } = useDataStore();
+  const user = useAuthStore((s) => s.user);
 
   const [form, setForm] = useState({
     name: "",
@@ -90,6 +93,7 @@ export const SettingsPage = () => {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const buildPreviewSchool = (): School => ({
@@ -110,35 +114,56 @@ export const SettingsPage = () => {
   });
 
   useEffect(() => {
-    if (school) {
+    if (!user?.schoolId) return;
+    api.get<School>(`/schools/${user.schoolId}`).then((s) => {
+      setSchool(s);
       setForm({
-        name: school.name ?? "",
-        address: school.address ?? "",
-        email: school.email ?? "",
-        phoneNumber: school.phoneNumber ?? "",
-        motto: school.motto ?? "",
-        principalName: school.principalName ?? "",
-        website: school.website ?? "",
-        state: school.state ?? "",
-        lga: school.lga ?? "",
-        schoolType:
-          (school.schoolType as "public" | "private" | "mission") ?? "public",
-        templateId: school.templateId ?? "classic",
+        name: s.name ?? "",
+        address: s.address ?? "",
+        email: s.email ?? "",
+        phoneNumber: s.phoneNumber ?? "",
+        motto: s.motto ?? "",
+        principalName: s.principalName ?? "",
+        website: s.website ?? "",
+        state: s.state ?? "",
+        lga: s.lga ?? "",
+        schoolType: (s.schoolType as "public" | "private" | "mission") ?? "public",
+        templateId: s.templateId ?? "classic",
       });
-    }
-  }, [school]);
+    }).catch(() => {
+      // fall back to store data if already loaded
+      if (school) {
+        setForm({
+          name: school.name ?? "",
+          address: school.address ?? "",
+          email: school.email ?? "",
+          phoneNumber: school.phoneNumber ?? "",
+          motto: school.motto ?? "",
+          principalName: school.principalName ?? "",
+          website: school.website ?? "",
+          state: school.state ?? "",
+          lga: school.lga ?? "",
+          schoolType: (school.schoolType as "public" | "private" | "mission") ?? "public",
+          templateId: school.templateId ?? "classic",
+        });
+      }
+    });
+  }, [user?.schoolId]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!user?.schoolId) return;
     setSaving(true);
-    setTimeout(() => {
-      setSchool({
-        id: school?.id ?? `school_${Date.now()}`,
-        ...form,
-      });
-      setSaving(false);
+    setError(null);
+    try {
+      const updated = await api.put<School>(`/schools/${user.schoolId}`, form);
+      setSchool(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    }, 500);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputCls = "input-inset";
@@ -219,6 +244,10 @@ export const SettingsPage = () => {
             )}
           </button>
         </div>
+
+        {error && (
+          <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{error}</div>
+        )}
 
         {/* School Identity */}
         <div className="ledger-card p-6">

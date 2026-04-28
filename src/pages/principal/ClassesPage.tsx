@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useDataStore, ClassItem } from "@/store/dataStore";
+import { useAuthStore } from "@/store/authStore";
+import { api } from "@/lib/api";
+import { Class, Teacher } from "@/types";
 
 const Icon = ({
   name,
@@ -17,49 +19,43 @@ const emptyForm = {
   teacherName: "",
 };
 
-export const ClassesPage = () => {
-  const { classes, teachers, addClass, updateClass, getStudentsByClass } =
-    useDataStore();
+const SUGGESTIONS = [
+  "Nursery 1","Nursery 2","Primary 1","Primary 2","Primary 3","Primary 4","Primary 5","Primary 6",
+  "JSS 1A","JSS 1B","JSS 1C","JSS 2A","JSS 2B","JSS 2C","JSS 3A","JSS 3B","JSS 3C",
+  "SS 1 Science","SS 1 Arts","SS 1 Commercial","SS 2 Science","SS 2 Arts","SS 2 Commercial",
+  "SS 3 Science","SS 3 Arts","SS 3 Commercial",
+];
 
+export const ClassesPage = () => {
+  const user = useAuthStore((s) => s.user);
+  const schoolId = user?.schoolId ?? "";
+
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!schoolId) return;
+    Promise.all([
+      api.get<Class[]>(`/schools/${schoolId}/classes`),
+      api.get<Teacher[]>(`/schools/${schoolId}/teachers`),
+    ]).then(([cls, tch]) => {
+      setClasses(cls);
+      setTeachers(tch);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [schoolId]);
 
   const filtered = classes.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const SUGGESTIONS = [
-    "Nursery 1",
-    "Nursery 2",
-    "Primary 1",
-    "Primary 2",
-    "Primary 3",
-    "Primary 4",
-    "Primary 5",
-    "Primary 6",
-    "JSS 1A",
-    "JSS 1B",
-    "JSS 1C",
-    "JSS 2A",
-    "JSS 2B",
-    "JSS 2C",
-    "JSS 3A",
-    "JSS 3B",
-    "JSS 3C",
-    "SS 1 Science",
-    "SS 1 Arts",
-    "SS 1 Commercial",
-    "SS 2 Science",
-    "SS 2 Arts",
-    "SS 2 Commercial",
-    "SS 3 Science",
-    "SS 3 Arts",
-    "SS 3 Commercial",
-  ];
   const unusedSuggestions = SUGGESTIONS.filter(
     (s) => !classes.find((c) => c.name.toLowerCase() === s.toLowerCase()),
   );
@@ -71,50 +67,53 @@ export const ClassesPage = () => {
     else if (!/^\d{4}\/\d{4}$/.test(form.academicYear.trim()))
       e.academicYear = "Format must be YYYY/YYYY e.g. 2024/2025";
     const duplicate = classes.find(
-      (c) =>
-        c.name.toLowerCase() === form.name.trim().toLowerCase() &&
-        c.id !== editingId,
+      (c) => c.name.toLowerCase() === form.name.trim().toLowerCase() && c.id !== editingId,
     );
-    if (duplicate)
-      e.name = `A class named "${form.name.trim()}" already exists.`;
+    if (duplicate) e.name = `A class named "${form.name.trim()}" already exists.`;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleTeacherChange = (teacherId: string) => {
     const teacher = teachers.find((t) => t.id === teacherId);
-    setForm({ ...form, teacherId, teacherName: teacher ? teacher.name : "" });
+    const name = teacher ? `${teacher.firstName} ${teacher.lastName}` : "";
+    setForm({ ...form, teacherId, teacherName: name });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
-    setTimeout(() => {
+    setApiError(null);
+    try {
       if (editingId) {
-        updateClass(editingId, {
+        const updated = await api.patch<Class>(`/schools/${schoolId}/classes/${editingId}`, {
           name: form.name.trim(),
           academicYear: form.academicYear.trim(),
           teacherId: form.teacherId || undefined,
           teacherName: form.teacherName || undefined,
         });
+        setClasses((prev) => prev.map((c) => c.id === editingId ? updated : c));
       } else {
-        addClass({
-          id: `class_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        const created = await api.post<Class>(`/schools/${schoolId}/classes`, {
           name: form.name.trim(),
           academicYear: form.academicYear.trim(),
           teacherId: form.teacherId || undefined,
           teacherName: form.teacherName || undefined,
         });
+        setClasses((prev) => [...prev, created]);
       }
-      setSaving(false);
       setShowForm(false);
       setEditingId(null);
       setForm({ ...emptyForm });
       setErrors({});
-    }, 400);
+    } catch (e: any) {
+      setApiError(e.message ?? "Failed to save class");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEdit = (cls: ClassItem) => {
+  const handleEdit = (cls: Class) => {
     setForm({
       name: cls.name,
       academicYear: cls.academicYear,
@@ -124,6 +123,7 @@ export const ClassesPage = () => {
     setEditingId(cls.id);
     setShowForm(true);
     setErrors({});
+    setApiError(null);
   };
 
   const handleCancel = () => {
@@ -131,7 +131,19 @@ export const ClassesPage = () => {
     setEditingId(null);
     setForm({ ...emptyForm });
     setErrors({});
+    setApiError(null);
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-32 text-on-surface-variant">
+          <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mr-3" />
+          Loading classes...
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -148,17 +160,17 @@ export const ClassesPage = () => {
           </div>
           {!showForm && (
             <button
-              onClick={() => {
-                setShowForm(true);
-                setEditingId(null);
-                setForm({ ...emptyForm });
-              }}
+              onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...emptyForm }); }}
               className="btn-primary flex items-center gap-2 text-sm"
             >
               <Icon name="add" /> Create Class
             </button>
           )}
         </div>
+
+        {apiError && (
+          <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{apiError}</div>
+        )}
 
         {/* Form */}
         {showForm && (
@@ -173,16 +185,11 @@ export const ClassesPage = () => {
                 </label>
                 <input
                   value={form.name}
-                  onChange={(e) => {
-                    setForm({ ...form, name: e.target.value });
-                    setErrors({ ...errors, name: "" });
-                  }}
+                  onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors({ ...errors, name: "" }); }}
                   placeholder="e.g. JSS 1A, SS 2 Science"
                   className={`input-inset ${errors.name ? "ring-2 ring-error" : ""}`}
                 />
-                {errors.name && (
-                  <p className="mt-1.5 text-xs text-error">{errors.name}</p>
-                )}
+                {errors.name && <p className="mt-1.5 text-xs text-error">{errors.name}</p>}
               </div>
               <div>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
@@ -190,23 +197,15 @@ export const ClassesPage = () => {
                 </label>
                 <input
                   value={form.academicYear}
-                  onChange={(e) => {
-                    setForm({ ...form, academicYear: e.target.value });
-                    setErrors({ ...errors, academicYear: "" });
-                  }}
+                  onChange={(e) => { setForm({ ...form, academicYear: e.target.value }); setErrors({ ...errors, academicYear: "" }); }}
                   placeholder="e.g. 2024/2025"
                   className={`input-inset ${errors.academicYear ? "ring-2 ring-error" : ""}`}
                 />
-                {errors.academicYear && (
-                  <p className="mt-1.5 text-xs text-error">
-                    {errors.academicYear}
-                  </p>
-                )}
+                {errors.academicYear && <p className="mt-1.5 text-xs text-error">{errors.academicYear}</p>}
               </div>
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
-                  Assign Teacher{" "}
-                  <span className="normal-case font-normal">(optional)</span>
+                  Assign Teacher <span className="normal-case font-normal">(optional)</span>
                 </label>
                 {teachers.length === 0 ? (
                   <div className="input-inset text-on-tertiary-container bg-tertiary-fixed/20">
@@ -221,7 +220,7 @@ export const ClassesPage = () => {
                     <option value="">— No teacher assigned —</option>
                     {teachers.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} ({t.email})
+                        {t.firstName} {t.lastName} ({t.email})
                       </option>
                     ))}
                   </select>
@@ -232,17 +231,12 @@ export const ClassesPage = () => {
             {/* Quick suggestions */}
             {!editingId && unusedSuggestions.length > 0 && (
               <div className="mb-5">
-                <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
-                  Quick create
-                </p>
+                <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Quick create</p>
                 <div className="flex flex-wrap gap-2">
                   {unusedSuggestions.map((s) => (
                     <button
                       key={s}
-                      onClick={() => {
-                        setForm({ ...form, name: s });
-                        setErrors({ ...errors, name: "" });
-                      }}
+                      onClick={() => { setForm({ ...form, name: s }); setErrors({ ...errors, name: "" }); }}
                       className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
                         form.name === s
                           ? "border-primary bg-primary/5 text-primary font-bold"
@@ -257,24 +251,15 @@ export const ClassesPage = () => {
             )}
 
             <div className="flex gap-3">
-              <button onClick={handleCancel} className="btn-ghost text-sm">
-                Cancel
-              </button>
+              <button onClick={handleCancel} className="btn-ghost text-sm">Cancel</button>
               <button
                 onClick={handleSave}
                 disabled={saving}
                 className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2"
               >
                 {saving ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />{" "}
-                    Saving...
-                  </>
-                ) : editingId ? (
-                  "Update Class"
-                ) : (
-                  "Create Class"
-                )}
+                  <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</>
+                ) : editingId ? "Update Class" : "Create Class"}
               </button>
             </div>
           </div>
@@ -297,40 +282,24 @@ export const ClassesPage = () => {
         {classes.length === 0 ? (
           <div className="ledger-card flex flex-col items-center justify-center py-20 text-on-surface-variant">
             <Icon name="school" className="text-5xl text-outline/30 mb-4" />
-            <p className="font-headline font-bold text-lg">
-              No classes created yet
-            </p>
-            <p className="text-sm mt-1 mb-6">
-              Create your first class to get started
-            </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="btn-primary text-sm"
-            >
+            <p className="font-headline font-bold text-lg">No classes created yet</p>
+            <p className="text-sm mt-1 mb-6">Create your first class to get started</p>
+            <button onClick={() => setShowForm(true)} className="btn-primary text-sm">
               <Icon name="add" className="mr-1" /> Create First Class
             </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="ledger-card flex flex-col items-center justify-center py-16 text-on-surface-variant">
-            <p className="font-headline font-bold text-lg">
-              No classes match "{search}"
-            </p>
+            <p className="font-headline font-bold text-lg">No classes match "{search}"</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((cls) => (
-              <div
-                key={cls.id}
-                className="ledger-card p-5 hover:shadow-ambient transition-shadow"
-              >
+              <div key={cls.id} className="ledger-card p-5 hover:shadow-ambient transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="font-headline font-bold text-lg text-primary">
-                      {cls.name}
-                    </h3>
-                    <p className="text-xs text-on-surface-variant mt-0.5">
-                      {cls.academicYear}
-                    </p>
+                    <h3 className="font-headline font-bold text-lg text-primary">{cls.name}</h3>
+                    <p className="text-xs text-on-surface-variant mt-0.5">{cls.academicYear}</p>
                   </div>
                   <span className="p-2 bg-primary/5 text-primary rounded-xl">
                     <Icon name="school" />
@@ -338,35 +307,19 @@ export const ClassesPage = () => {
                 </div>
                 {cls.teacherName ? (
                   <div className="flex items-center gap-2 mb-2">
-                    <Icon
-                      name="check_circle"
-                      className="text-secondary text-base flex-shrink-0"
-                    />
-                    <span className="text-sm text-on-surface font-medium">
-                      {cls.teacherName}
-                    </span>
+                    <Icon name="check_circle" className="text-secondary text-base flex-shrink-0" />
+                    <span className="text-sm text-on-surface font-medium">{cls.teacherName}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 mb-2">
-                    <Icon
-                      name="warning"
-                      className="text-on-tertiary-container text-base flex-shrink-0"
-                    />
-                    <span className="text-sm text-on-surface-variant">
-                      No teacher assigned
-                    </span>
+                    <Icon name="warning" className="text-on-tertiary-container text-base flex-shrink-0" />
+                    <span className="text-sm text-on-surface-variant">No teacher assigned</span>
                   </div>
                 )}
-
-                {/* Student count */}
                 <div className="flex items-center gap-2 mb-4">
-                  <Icon
-                    name="group"
-                    className="text-on-surface-variant text-base flex-shrink-0"
-                  />
+                  <Icon name="group" className="text-on-surface-variant text-base flex-shrink-0" />
                   <span className="text-sm text-on-surface-variant">
-                    {getStudentsByClass(cls.id).length} student
-                    {getStudentsByClass(cls.id).length !== 1 ? "s" : ""}
+                    {(cls as any).studentCount ?? 0} student{((cls as any).studentCount ?? 0) !== 1 ? "s" : ""}
                   </span>
                 </div>
                 <button
@@ -384,17 +337,10 @@ export const ClassesPage = () => {
         {classes.length > 0 && (
           <div className="ledger-card p-4 flex items-center justify-between text-sm">
             <span className="text-on-surface-variant">
-              Total:{" "}
-              <span className="font-bold text-on-surface">
-                {classes.length}
-              </span>{" "}
-              class{classes.length !== 1 ? "es" : ""}
+              Total: <span className="font-bold text-on-surface">{classes.length}</span> class{classes.length !== 1 ? "es" : ""}
             </span>
             <span className="text-on-surface-variant">
-              <span className="font-bold text-secondary">
-                {classes.filter((c) => c.teacherName).length}
-              </span>{" "}
-              of {classes.length} have teachers assigned
+              <span className="font-bold text-secondary">{classes.filter((c) => c.teacherName).length}</span> of {classes.length} have teachers assigned
             </span>
           </div>
         )}

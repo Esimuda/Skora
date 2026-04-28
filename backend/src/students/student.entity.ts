@@ -1,6 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 @Entity('students')
+@Index(['classId'])    // student list per class — the hottest read path
+@Index(['schoolId'])
 export class Student {
   @PrimaryGeneratedColumn('uuid')
   id: string;

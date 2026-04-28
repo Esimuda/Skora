@@ -1,35 +1,64 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
 import { useDataStore } from '@/store/dataStore';
-import { Term } from '@/types';
-
-const CURRENT_TERM: Term = 'first';
-const CURRENT_YEAR = '2024/2025';
+import { api } from '@/lib/api';
+import { Class, School } from '@/types';
 
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
 );
 
+interface ClassResult {
+  id: string;
+  classId: string;
+  className: string;
+  teacherName: string;
+  term: string;
+  academicYear: string;
+  status: 'submitted' | 'approved' | 'rejected';
+  submittedAt?: string;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export const PrincipalDashboard = () => {
   const user = useAuthStore((s) => s.user);
+  const { school, setSchool } = useDataStore();
   const navigate = useNavigate();
-  const {
-    school,
-    classes,
-    students,
-    resultStatuses,
-    getNotificationsFor,
-    markNotificationRead,
-    computeClassResults,
-  } = useDataStore();
+  const schoolId = user?.schoolId ?? '';
 
-  const termStatuses = resultStatuses.filter(
-    (r) => r.term === CURRENT_TERM && r.academicYear === CURRENT_YEAR
-  );
-  const pending = termStatuses.filter((r) => r.status === 'submitted');
-  const approved = termStatuses.filter((r) => r.status === 'approved');
-  const notifications = getNotificationsFor('principal');
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [results, setResults] = useState<ClassResult[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    Promise.all([
+      api.get<School>(`/schools/${schoolId}`),
+      api.get<Class[]>(`/schools/${schoolId}/classes`),
+      api.get<ClassResult[]>(`/schools/${schoolId}/results`),
+      api.get<Notification[]>('/notifications'),
+    ]).then(([s, cls, res, notifs]) => {
+      setSchool(s);
+      setClasses(cls);
+      setResults(res);
+      setNotifications(notifs);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [schoolId]);
+
+  const pending = results.filter((r) => r.status === 'submitted');
+  const approved = results.filter((r) => r.status === 'approved');
+  const totalStudents = classes.reduce((sum, c) => sum + ((c as any).studentCount ?? 0), 0);
 
   const principalName =
     school?.principalName ??
@@ -37,10 +66,17 @@ export const PrincipalDashboard = () => {
 
   const stats = [
     { label: 'Total Classes',     value: classes.length,  icon: 'school',          iconBg: 'bg-primary/5 text-primary' },
-    { label: 'Total Students',    value: students.length, icon: 'group',           iconBg: 'bg-secondary/5 text-secondary' },
+    { label: 'Total Students',    value: totalStudents,   icon: 'group',           iconBg: 'bg-secondary/5 text-secondary' },
     { label: 'Pending Approvals', value: pending.length,  icon: 'pending_actions', iconBg: 'bg-tertiary-fixed-dim/20 text-on-tertiary-container', alert: pending.length > 0 },
     { label: 'Approved Results',  value: approved.length, icon: 'verified',        iconBg: 'bg-secondary/5 text-secondary' },
   ];
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+    } catch {}
+  };
 
   return (
     <DashboardLayout>
@@ -49,13 +85,9 @@ export const PrincipalDashboard = () => {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">
-              Dashboard
-            </h2>
+            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Dashboard</h2>
             <p className="text-on-surface-variant text-sm mt-1">
-              Welcome,{' '}
-              <span className="font-semibold text-on-surface">{principalName}</span>
-              {' '}— First Term · {CURRENT_YEAR}
+              Welcome, <span className="font-semibold text-on-surface">{principalName}</span>
             </p>
           </div>
           {school?.name && (
@@ -70,33 +102,27 @@ export const PrincipalDashboard = () => {
         </div>
 
         {/* Notifications */}
-        {notifications.length > 0 && (
+        {notifications.filter((n) => !n.isRead).length > 0 && (
           <div className="space-y-2">
-            {notifications.map((n) => (
+            {notifications.filter((n) => !n.isRead).map((n) => (
               <div
                 key={n.id}
-                onClick={() => markNotificationRead(n.id)}
-                className={`ledger-card p-4 flex items-start gap-4 cursor-pointer transition-opacity ${n.isRead ? 'opacity-40' : ''}`}
+                onClick={() => handleMarkRead(n.id)}
+                className="ledger-card p-4 flex items-start gap-4 cursor-pointer transition-opacity"
               >
                 <span className={`p-2 rounded-lg flex-shrink-0 ${
-                  n.type === 'approved' ? 'bg-secondary-container/40 text-on-secondary-container'
-                  : n.type === 'rejected' ? 'bg-error-container text-on-error-container'
+                  n.type === 'result_approved' ? 'bg-secondary-container/40 text-on-secondary-container'
+                  : n.type === 'result_rejected' ? 'bg-error-container text-on-error-container'
                   : 'bg-surface-container-low text-primary'
                 }`}>
-                  <Icon name={
-                    n.type === 'approved' ? 'check_circle'
-                    : n.type === 'rejected' ? 'cancel'
-                    : 'notifications'
-                  } />
+                  <Icon name={n.type === 'result_approved' ? 'check_circle' : n.type === 'result_rejected' ? 'cancel' : 'notifications'} />
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-on-surface text-sm">{n.title}</p>
                   <p className="text-sm text-on-surface-variant mt-0.5">{n.message}</p>
                   <p className="text-xs text-on-surface-variant/60 mt-1">
                     {new Date(n.createdAt).toLocaleString('en-NG')}
-                    {!n.isRead && (
-                      <span className="ml-2 text-primary font-medium">· tap to dismiss</span>
-                    )}
+                    <span className="ml-2 text-primary font-medium">· tap to dismiss</span>
                   </p>
                 </div>
               </div>
@@ -113,16 +139,12 @@ export const PrincipalDashboard = () => {
                   <Icon name={stat.icon} />
                 </span>
                 {'alert' in stat && stat.alert && (
-                  <span className="text-[10px] font-bold text-error bg-error-container px-2 py-0.5 rounded-full">
-                    Action needed
-                  </span>
+                  <span className="text-[10px] font-bold text-error bg-error-container px-2 py-0.5 rounded-full">Action needed</span>
                 )}
               </div>
-              <p className="text-on-surface-variant text-[10px] md:text-xs uppercase tracking-widest font-bold">
-                {stat.label}
-              </p>
+              <p className="text-on-surface-variant text-[10px] md:text-xs uppercase tracking-widest font-bold">{stat.label}</p>
               <p className="font-headline font-extrabold text-2xl md:text-3xl text-primary mt-1">
-                {stat.value}
+                {loading ? <span className="block w-8 h-7 bg-surface-container-highest rounded animate-pulse" /> : stat.value}
               </p>
             </div>
           ))}
@@ -134,12 +156,7 @@ export const PrincipalDashboard = () => {
           <div className="ledger-card overflow-hidden">
             <div className="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
               <h3 className="font-headline font-bold text-xl text-primary">Pending Approvals</h3>
-              <button
-                onClick={() => navigate('/principal/approvals')}
-                className="text-sm text-primary font-semibold hover:underline"
-              >
-                View all
-              </button>
+              <button onClick={() => navigate('/principal/approvals')} className="text-sm text-primary font-semibold hover:underline">View all</button>
             </div>
             {pending.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
@@ -148,25 +165,20 @@ export const PrincipalDashboard = () => {
               </div>
             ) : (
               <div className="divide-y divide-outline-variant/10">
-                {pending.map((r) => {
-                  const results = computeClassResults(r.classId, r.term, r.academicYear);
-                  return (
-                    <div key={r.classId} className="px-6 py-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-on-surface">{r.className}</p>
-                        <p className="text-xs text-on-surface-variant mt-0.5">
-                          {r.teacherName} · {results.length} students
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => navigate('/principal/approvals')}
-                        className="px-4 py-2 text-xs bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-xl font-bold hover:opacity-90 transition-opacity"
-                      >
-                        Review
-                      </button>
+                {pending.map((r) => (
+                  <div key={r.id} className="px-6 py-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-on-surface">{r.className}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{r.teacherName} · {r.term} term</p>
                     </div>
-                  );
-                })}
+                    <button
+                      onClick={() => navigate('/principal/approvals')}
+                      className="px-4 py-2 text-xs bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-xl font-bold hover:opacity-90 transition-opacity"
+                    >
+                      Review
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -175,12 +187,7 @@ export const PrincipalDashboard = () => {
           <div className="ledger-card overflow-hidden">
             <div className="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
               <h3 className="font-headline font-bold text-xl text-primary">Approved Results</h3>
-              <button
-                onClick={() => navigate('/principal/downloads')}
-                className="text-sm text-primary font-semibold hover:underline"
-              >
-                Downloads
-              </button>
+              <button onClick={() => navigate('/principal/downloads')} className="text-sm text-primary font-semibold hover:underline">Downloads</button>
             </div>
             {approved.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
@@ -190,12 +197,10 @@ export const PrincipalDashboard = () => {
             ) : (
               <div className="divide-y divide-outline-variant/10">
                 {approved.map((r) => (
-                  <div key={r.classId} className="px-6 py-4 flex items-center justify-between">
+                  <div key={r.id} className="px-6 py-4 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-on-surface">{r.className}</p>
-                      <p className="text-xs text-on-surface-variant mt-0.5">
-                        {r.teacherName} · {r.studentCount} students
-                      </p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{r.teacherName}</p>
                     </div>
                     <button
                       onClick={() => navigate('/principal/downloads')}
@@ -223,17 +228,11 @@ export const PrincipalDashboard = () => {
               <button
                 key={qa.path}
                 onClick={() => navigate(qa.path)}
-                className={`p-4 md:p-5 rounded-xl text-left transition-all hover:shadow-card ${
-                  qa.highlight
-                    ? 'bg-gradient-to-br from-primary to-primary-container text-on-primary'
-                    : 'bg-surface-container-low hover:bg-surface-container text-on-surface'
-                }`}
+                className={`p-4 md:p-5 rounded-xl text-left transition-all hover:shadow-card ${qa.highlight ? 'bg-gradient-to-br from-primary to-primary-container text-on-primary' : 'bg-surface-container-low hover:bg-surface-container text-on-surface'}`}
               >
                 <Icon name={qa.icon} className={`text-2xl mb-2 md:mb-3 block ${qa.highlight ? 'text-on-primary/80' : 'text-primary'}`} />
                 <p className="font-bold text-sm">{qa.label}</p>
-                <p className={`text-xs mt-0.5 ${qa.highlight ? 'text-on-primary/70' : 'text-on-surface-variant'}`}>
-                  {qa.desc}
-                </p>
+                <p className={`text-xs mt-0.5 ${qa.highlight ? 'text-on-primary/70' : 'text-on-surface-variant'}`}>{qa.desc}</p>
               </button>
             ))}
           </div>

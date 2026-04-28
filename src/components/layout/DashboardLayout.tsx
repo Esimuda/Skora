@@ -1,7 +1,8 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { useDataStore } from '@/store/dataStore';
+import { api } from '@/lib/api';
+import * as syncManager from '@/lib/syncManager';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,9 +18,44 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const notifications = useDataStore((s) => s.notifications);
-  const notifRole = user?.role === 'teacher' ? 'teacher' : 'principal';
-  const notifCount = notifications.filter((n) => !n.isRead && n.for === notifRole).length;
+  const [notifCount, setNotifCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncState, setSyncState] = useState<syncManager.SyncState>('idle');
+  const [pendingCount, setPendingCount] = useState(syncManager.getCurrentCount());
+
+  useEffect(() => {
+    // Load notification badge count
+    api.get<{ id: string; isRead: boolean }[]>('/notifications')
+      .then((ns) => setNotifCount(ns.filter((n) => !n.isRead).length))
+      .catch(() => {});
+
+    // Online/offline detection
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Sync state listener
+    const unsubSync = syncManager.onSyncStateChange((state, count) => {
+      setSyncState(state);
+      setPendingCount(count);
+    });
+
+    // Refresh notif badge after a sync completes
+    const handleSyncDone = () => {
+      api.get<{ id: string; isRead: boolean }[]>('/notifications')
+        .then((ns) => setNotifCount(ns.filter((n) => !n.isRead).length))
+        .catch(() => {});
+    };
+    window.addEventListener('skora:sync-complete', handleSyncDone);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('skora:sync-complete', handleSyncDone);
+      unsubSync();
+    };
+  }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -49,7 +85,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const userName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
   const userRole = isTeacher ? 'Class Teacher' : 'School Principal';
 
-  // Mobile bottom nav — 4 most-used links per role
   const teacherMobileLinks = [
     { to: '/teacher/dashboard',  label: 'Home',     icon: 'dashboard' },
     { to: '/teacher/students',   label: 'Students', icon: 'group' },
@@ -69,6 +104,41 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     (to !== '/teacher/dashboard' &&
       to !== '/principal/dashboard' &&
       location.pathname.startsWith(to));
+
+  // Sync status bar content
+  const SyncBar = () => {
+    if (isOnline && syncState === 'idle' && pendingCount === 0) return null;
+    if (syncState === 'synced') return (
+      <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold bg-secondary text-on-secondary">
+        <Icon name="cloud_done" className="text-sm" /> All changes synced
+      </div>
+    );
+    if (syncState === 'syncing') return (
+      <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold bg-primary text-on-primary">
+        <span className="w-3 h-3 border border-on-primary/40 border-t-on-primary rounded-full animate-spin" />
+        Syncing {pendingCount} change{pendingCount !== 1 ? 's' : ''}…
+      </div>
+    );
+    if (!isOnline) return (
+      <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold bg-error-container text-on-error-container">
+        <Icon name="cloud_off" className="text-sm" />
+        Offline — changes saved locally{pendingCount > 0 ? ` (${pendingCount} pending)` : ''}
+      </div>
+    );
+    if (pendingCount > 0) return (
+      <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed-variant">
+        <Icon name="sync" className="text-sm" />
+        {pendingCount} change{pendingCount !== 1 ? 's' : ''} queued — tap to sync
+        <button
+          onClick={() => syncManager.syncNow()}
+          className="underline font-bold ml-1"
+        >
+          Sync now
+        </button>
+      </div>
+    );
+    return null;
+  };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -160,6 +230,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
 
+        {/* Sync / Connectivity Status Bar */}
+        <SyncBar />
+
         {/* Topbar */}
         <header className="h-14 md:h-16 px-4 md:px-8 flex justify-between items-center bg-surface/80 backdrop-blur-md sticky top-0 z-40 shadow-[0px_12px_32px_rgba(7,30,39,0.04)]">
           <div className="flex items-center gap-3">
@@ -169,7 +242,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             >
               <Icon name="menu" />
             </button>
-            {/* Mobile brand */}
             <span className="md:hidden font-headline font-black text-base text-primary">Skora RMS</span>
           </div>
 
@@ -182,11 +254,17 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs bg-secondary-container/30 text-on-secondary-container px-3 py-1.5 rounded-full font-medium">
-              <span className="w-1.5 h-1.5 bg-secondary rounded-full" />
-              <span className="hidden sm:inline">Offline Ready</span>
+            {/* Connectivity pill */}
+            <div className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+              isOnline
+                ? 'bg-secondary-container/30 text-on-secondary-container'
+                : 'bg-error-container text-on-error-container'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-secondary' : 'bg-error'}`} />
+              <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
             </div>
 
+            {/* Notification bell */}
             <button className="relative h-11 w-11 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
               <Icon name="notifications" />
               {notifCount > 0 && (

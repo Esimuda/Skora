@@ -1,7 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique, Index } from 'typeorm';
 
 @Entity('class_results')
 @Unique(['classId', 'term', 'academicYear'])
+@Index(['schoolId', 'status'])
+@Index(['schoolId', 'term', 'academicYear'])
 export class ClassResult {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -30,13 +32,13 @@ export class ClassResult {
   @Column({ default: 'draft' })
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   submittedAt: Date;
 
   @Column({ nullable: true })
   submittedBy: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   approvedAt: Date;
 
   @Column({ nullable: true })
@@ -45,10 +47,10 @@ export class ClassResult {
   @Column({ type: 'text', nullable: true })
   principalNote: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   rejectedAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   rejectedBy: string | null;
 
   @Column({ type: 'text', nullable: true })

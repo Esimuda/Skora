@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
+import { api } from "@/lib/api";
+import { User } from "@/types";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -8,6 +10,7 @@ export const LoginPage = () => {
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
@@ -25,24 +28,23 @@ export const LoginPage = () => {
     e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
-    setTimeout(() => {
-      const isDemoTeacher = formData.email.includes("teacher");
-      const demoUser = {
-        id: "user-123",
-        email: formData.email,
-        firstName: isDemoTeacher ? "John" : "Mary",
-        lastName: isDemoTeacher ? "Okonkwo" : "Adebayo",
-        role: (isDemoTeacher ? "teacher" : "school_admin") as
-          | "teacher"
-          | "school_admin",
-        schoolId: "school-1",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      login(demoUser, "demo-jwt-token-" + Date.now());
+    setApiError("");
+    try {
+      const res = await api.post<{ access_token: string; user: User }>(
+        "/auth/login",
+        { email: formData.email, password: formData.password },
+      );
+      login(res.user, res.access_token);
+      navigate(
+        res.user.role === "teacher"
+          ? "/teacher/dashboard"
+          : "/principal/dashboard",
+      );
+    } catch (err: any) {
+      setApiError(err.message ?? "Login failed. Please try again.");
+    } finally {
       setLoading(false);
-      navigate(isDemoTeacher ? "/teacher/dashboard" : "/principal/dashboard");
-    }, 1200);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,31 +101,6 @@ export const LoginPage = () => {
             </p>
           </div>
 
-          {/* Demo hint */}
-          <div className="bg-surface-container-low rounded-xl p-4 mb-8 text-xs text-on-surface-variant space-y-1">
-            <p className="font-bold text-on-surface text-sm">
-              Demo Credentials
-            </p>
-            <p>
-              Teacher:{" "}
-              <span className="font-medium text-primary">
-                teacher@school.com
-              </span>
-            </p>
-            <p>
-              Principal:{" "}
-              <span className="font-medium text-primary">
-                principal@school.com
-              </span>
-            </p>
-            <p>
-              Password:{" "}
-              <span className="font-medium text-primary">
-                any 6+ characters
-              </span>
-            </p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
@@ -158,6 +135,12 @@ export const LoginPage = () => {
                 <p className="mt-1.5 text-xs text-error">{errors.password}</p>
               )}
             </div>
+
+            {apiError && (
+              <p className="text-sm text-error bg-error-container/30 rounded-lg px-4 py-2.5">
+                {apiError}
+              </p>
+            )}
 
             <button
               type="submit"

@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useDataStore } from '@/store/dataStore';
+import { api } from '@/lib/api';
+import { User, School } from '@/types';
 
 type Step = 'school' | 'admin' | 'template';
 
@@ -47,6 +49,7 @@ export const SignupPage = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState('');
 
   // ── Logo upload ──────────────────────────────────────────────────────────
 
@@ -135,14 +138,28 @@ export const SignupPage = () => {
 
   // ── Submit ───────────────────────────────────────────────────────────────
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setLoading(true);
+    setApiError('');
+    try {
+      // 1. Create the admin user account
+      const authRes = await api.post<{ access_token: string; user: User }>(
+        '/auth/signup',
+        {
+          email: adminData.email.trim(),
+          password: adminData.password,
+          firstName: adminData.firstName.trim(),
+          lastName: adminData.lastName.trim(),
+          role: 'school_admin',
+        },
+      );
 
-    setTimeout(() => {
-      const schoolId = `school_${Date.now()}`;
+      // 2. Persist the token so the next request is authenticated
+      login(authRes.user, authRes.access_token);
 
-      setSchool({
-        id: schoolId,
+      // 3. Create the school (Zustand persist writes to localStorage synchronously,
+      //    so the token is available to api.ts's getToken() now)
+      const school = await api.post<School>('/schools', {
         name: schoolData.schoolName.trim(),
         address: schoolData.schoolAddress.trim(),
         email: schoolData.schoolEmail.trim(),
@@ -157,21 +174,28 @@ export const SignupPage = () => {
         templateId: selectedTemplate,
       });
 
-      const user = {
-        id: `admin_${Date.now()}`,
-        email: adminData.email.trim(),
-        firstName: adminData.firstName.trim(),
-        lastName: adminData.lastName.trim(),
-        role: 'school_admin' as const,
-        schoolId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      setSchool({
+        id: school.id,
+        name: school.name,
+        address: school.address,
+        email: school.email,
+        phoneNumber: school.phoneNumber,
+        motto: school.motto,
+        logo: school.logo,
+        principalName: school.principalName,
+        website: school.website,
+        state: school.state,
+        lga: school.lga,
+        schoolType: school.schoolType,
+        templateId: school.templateId ?? 'classic',
+      });
 
-      login(user, `token_${Date.now()}`);
-      setLoading(false);
       navigate('/principal/dashboard');
-    }, 1200);
+    } catch (err: any) {
+      setApiError(err.message ?? 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -645,6 +669,12 @@ export const SignupPage = () => {
                 </div>
               </div>
 
+              {apiError && (
+                <p className="text-sm text-error bg-error-container/30 rounded-lg px-4 py-2.5">
+                  {apiError}
+                </p>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <button onClick={handleBack} className="btn-ghost flex-1 text-sm">
                   ← Back
@@ -654,7 +684,7 @@ export const SignupPage = () => {
                   disabled={loading}
                   className="btn-primary flex-1 text-sm disabled:opacity-50"
                 >
-                  {loading ? '⏳ Creating Account...' : '🎉 Create School Account'}
+                  {loading ? 'Creating Account...' : 'Create School Account'}
                 </button>
               </div>
             </div>
