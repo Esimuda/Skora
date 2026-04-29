@@ -62,37 +62,12 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          // API GET requests — NetworkFirst: fresh data when online, cached when offline
-          {
-            urlPattern: ({ url, request }: { url: URL; request: Request }) =>
-              url.pathname.startsWith('/api') && request.method === 'GET',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-get-cache',
-              networkTimeoutSeconds: 8,
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
-              },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          // External API URL (production backend on Render/Railway/etc.)
-          {
-            urlPattern: ({ request }: { request: Request }) =>
-              request.method === 'GET' &&
-              request.url.includes('/api/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'external-api-get-cache',
-              networkTimeoutSeconds: 8,
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
+          // API requests are NOT cached by the service worker.
+          // Caching was removed because Workbox's NetworkFirst strategy holds
+          // the fetch promise open indefinitely when there is no cached response
+          // and the network is slow, preventing the app's own AbortController
+          // timeout from clearing the loading state. Mutations are already
+          // queued for offline replay via api.ts / offlineQueue.ts.
         ],
 
         // Allow the SW to take control immediately (no waiting for reload)
