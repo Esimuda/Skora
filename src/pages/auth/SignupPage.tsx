@@ -18,6 +18,7 @@ const NIGERIAN_STATES = [
 export const SignupPage = () => {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const setSchool = useDataStore((s) => s.setSchool);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -173,6 +174,8 @@ export const SignupPage = () => {
         schoolType: schoolData.schoolType,
         templateId: selectedTemplate,
       });
+
+      updateUser({ schoolId: school.id });
 
       setSchool({
         id: school.id,
