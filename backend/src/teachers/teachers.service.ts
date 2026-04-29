@@ -7,6 +7,7 @@ import { Teacher } from './teacher.entity';
 import { InviteToken } from './invite-token.entity';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
+import { SchoolsService } from '../schools/schools.service';
 import { InviteTeacherDto } from './dto/invite-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +19,7 @@ export class TeachersService {
     @InjectRepository(InviteToken) private tokenRepo: Repository<InviteToken>,
     private users: UsersService,
     private mail: MailService,
+    private schools: SchoolsService,
     private config: ConfigService,
   ) {}
 
@@ -56,12 +58,15 @@ export class TeachersService {
     await this.tokenRepo.save(this.tokenRepo.create({ token, email: dto.email, schoolId, expiresAt }));
 
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
-    const inviteUrl = `${frontendUrl}/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
+    const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
+
+    const schoolRecord = await this.schools.findOne(schoolId).catch(() => null);
+    const schoolName = schoolRecord?.name ?? 'your school';
 
     await this.mail.sendTeacherInvite({
       to: dto.email,
       teacherName: `${dto.firstName} ${dto.lastName}`,
-      schoolName: invitedByUser.schoolName ?? 'your school',
+      schoolName,
       principalName: `${invitedByUser.firstName} ${invitedByUser.lastName}`,
       inviteUrl,
       temporaryPassword: password,

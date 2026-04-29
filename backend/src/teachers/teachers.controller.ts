@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -33,6 +33,7 @@ export class TeachersController {
   }
 
   @Put(':id')
+  @Patch(':id')
   @Roles('school_admin', 'admin')
   update(@Param('schoolId') schoolId: string, @Param('id') id: string, @Body() dto: UpdateTeacherDto) {
     return this.service.update(schoolId, id, dto);

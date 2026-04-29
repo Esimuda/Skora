@@ -5,9 +5,10 @@ import { InviteToken } from './invite-token.entity';
 import { TeachersService } from './teachers.service';
 import { TeachersController } from './teachers.controller';
 import { UsersModule } from '../users/users.module';
+import { SchoolsModule } from '../schools/schools.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Teacher, InviteToken]), UsersModule],
+  imports: [TypeOrmModule.forFeature([Teacher, InviteToken]), UsersModule, SchoolsModule],
   providers: [TeachersService],
   controllers: [TeachersController],
   exports: [TeachersService],

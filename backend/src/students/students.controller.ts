@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { StudentsService } from './students.service';
@@ -32,6 +32,7 @@ export class StudentsController {
   }
 
   @Put(':id')
+  @Patch(':id')
   update(@Param('schoolId') schoolId: string, @Param('id') id: string, @Body() dto: UpdateStudentDto) {
     return this.service.update(schoolId, id, dto);
   }

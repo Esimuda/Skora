@@ -28,16 +28,16 @@ export class Notification {
   @Column({ type: 'text' })
   message: string;
 
-  @Column()
+  @Column({ nullable: true })
   classId: string;
 
-  @Column()
+  @Column({ nullable: true })
   className: string;
 
-  @Column()
+  @Column({ nullable: true })
   term: string;
 
-  @Column()
+  @Column({ nullable: true })
   academicYear: string;
 
   @Column({ default: false })
