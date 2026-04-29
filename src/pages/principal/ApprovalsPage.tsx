@@ -60,7 +60,7 @@ export const ApprovalsPage = () => {
   const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected">("pending");
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) { setLoading(false); return; }
     api.get<ClassResult[]>(`/schools/${schoolId}/results`)
       .then(setResults)
       .catch(() => {})

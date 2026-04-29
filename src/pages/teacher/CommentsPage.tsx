@@ -63,7 +63,7 @@ export const CommentsPage = () => {
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) { setLoadingClasses(false); return; }
     api.get<Class[]>(`/schools/${schoolId}/classes`)
       .then(setClasses)
       .catch(() => {})

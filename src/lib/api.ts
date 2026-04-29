@@ -22,6 +22,8 @@ function isNetworkError(e: unknown): boolean {
   );
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(
   method: string,
   path: string,
@@ -38,6 +40,9 @@ async function request<T>(
     return (body ?? {}) as T;
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   try {
     const res = await fetch(`${BASE}${path}`, {
       method,
@@ -46,7 +51,9 @@ async function request<T>(
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: 'Request failed' }));
@@ -57,6 +64,7 @@ async function request<T>(
     if (res.status === 204) return undefined as T;
     return res.json();
   } catch (e) {
+    clearTimeout(timeoutId);
     if (isNetworkError(e) && isMutation) {
       // Network down mid-request — queue for later
       await queue.enqueue(method, path, body);

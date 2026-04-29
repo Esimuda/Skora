@@ -30,7 +30,7 @@ export const TeachersPage = () => {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) { setLoading(false); return; }
     Promise.all([
       api.get<Teacher[]>(`/schools/${schoolId}/teachers`),
       api.get<Class[]>(`/schools/${schoolId}/classes`),

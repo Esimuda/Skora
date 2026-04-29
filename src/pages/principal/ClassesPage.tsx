@@ -42,7 +42,7 @@ export const ClassesPage = () => {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) { setLoading(false); return; }
     Promise.all([
       api.get<Class[]>(`/schools/${schoolId}/classes`),
       api.get<Teacher[]>(`/schools/${schoolId}/teachers`),

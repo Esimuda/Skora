@@ -211,7 +211,7 @@ export const DownloadsPage = () => {
 
   // On mount: fetch school info, classes, and approved result statuses in parallel
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
       api.get<School>(`/schools/${schoolId}`),
