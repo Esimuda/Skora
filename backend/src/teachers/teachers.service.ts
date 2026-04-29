@@ -60,16 +60,17 @@ export class TeachersService {
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
     const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
 
-    const schoolRecord = await this.schools.findOne(schoolId).catch(() => null);
-    const schoolName = schoolRecord?.name ?? 'your school';
-
-    await this.mail.sendTeacherInvite({
-      to: dto.email,
-      teacherName: `${dto.firstName} ${dto.lastName}`,
-      schoolName,
-      principalName: `${invitedByUser.firstName} ${invitedByUser.lastName}`,
-      inviteUrl,
-      temporaryPassword: password,
+    // Fire-and-forget — don't block the response on email delivery
+    this.schools.findOne(schoolId).catch(() => null).then((schoolRecord) => {
+      const schoolName = schoolRecord?.name ?? 'your school';
+      this.mail.sendTeacherInvite({
+        to: dto.email,
+        teacherName: `${dto.firstName} ${dto.lastName}`,
+        schoolName,
+        principalName: `${invitedByUser.firstName} ${invitedByUser.lastName}`,
+        inviteUrl,
+        temporaryPassword: password,
+      }).catch(() => { /* email failure is non-fatal */ });
     });
 
     return { teacher, inviteUrl };
