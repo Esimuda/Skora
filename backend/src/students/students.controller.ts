@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { StudentsService } from './students.service';
@@ -38,6 +38,7 @@ export class StudentsController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   remove(@Param('schoolId') schoolId: string, @Param('id') id: string) {
     return this.service.remove(schoolId, id);
   }
