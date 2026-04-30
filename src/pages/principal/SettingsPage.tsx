@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDataStore } from "@/store/dataStore";
 import { useAuthStore } from "@/store/authStore";
@@ -77,6 +78,8 @@ const Icon = ({
 export const SettingsPage = () => {
   const { school, setSchool } = useDataStore();
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     name: "",
@@ -95,6 +98,10 @@ export const SettingsPage = () => {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const buildPreviewSchool = (): School => ({
     id: "preview",
@@ -163,6 +170,20 @@ export const SettingsPage = () => {
       setError(e.message ?? 'Failed to save');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteSchool = async () => {
+    if (!user?.schoolId) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.delete(`/schools/${user.schoolId}`);
+      logout();
+      navigate("/login");
+    } catch (e: any) {
+      setDeleteError(e.message ?? "Failed to delete school");
+      setDeleting(false);
     }
   };
 
@@ -456,7 +477,65 @@ export const SettingsPage = () => {
             )}
           </button>
         </div>
+        {/* Danger Zone */}
+        <div className="ledger-card p-6 border border-error/30">
+          <h3 className="font-headline font-bold text-lg text-error mb-1 flex items-center gap-2">
+            <Icon name="warning" /> Danger Zone
+          </h3>
+          <p className="text-sm text-on-surface-variant mb-4">
+            Permanently delete this school account and all associated data — teachers, classes, students, results, and scores. This cannot be undone.
+          </p>
+          <button
+            onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(""); setDeleteError(null); }}
+            className="px-4 py-2 text-sm font-bold text-error border border-error/40 rounded-xl hover:bg-error-container/20 transition-colors"
+          >
+            Delete School Account
+          </button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-error text-3xl">warning</span>
+              <h3 className="font-headline font-bold text-xl text-error">Delete School Account</h3>
+            </div>
+            <p className="text-sm text-on-surface-variant">
+              This will permanently delete <strong>{school?.name ?? "your school"}</strong> and all its data. Type the school name below to confirm.
+            </p>
+            <input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={school?.name ?? "School name"}
+              className="input-inset"
+            />
+            {deleteError && (
+              <p className="text-sm text-error">{deleteError}</p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 btn-ghost text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSchool}
+                disabled={deleting || deleteConfirmText.trim() !== (school?.name ?? "").trim()}
+                className="flex-1 py-2.5 text-sm font-bold bg-error text-on-error rounded-xl disabled:opacity-40 flex items-center justify-center gap-2 transition-opacity"
+              >
+                {deleting ? (
+                  <><span className="w-4 h-4 border-2 border-on-error/30 border-t-on-error rounded-full animate-spin" /> Deleting...</>
+                ) : "Delete Forever"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Result Format Preview Modal */}
       {showPreview && (
         <div

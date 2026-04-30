@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -31,5 +31,12 @@ export class SchoolsController {
   @Roles('school_admin', 'admin')
   update(@Param('id') id: string, @Body() dto: UpdateSchoolDto, @CurrentUser() user: any) {
     return this.service.update(id, dto, user);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles('school_admin', 'admin')
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.remove(id, user);
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { School } from './school.entity';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { UpdateSchoolDto } from './dto/update-school.dto';
@@ -10,6 +10,7 @@ import { UsersService } from '../users/users.service';
 export class SchoolsService {
   constructor(
     @InjectRepository(School) private repo: Repository<School>,
+    @InjectDataSource() private dataSource: DataSource,
     private users: UsersService,
   ) {}
 
@@ -29,6 +30,29 @@ export class SchoolsService {
     this.assertSchoolAccess(id, requestingUser);
     await this.repo.update(id, dto);
     return this.findOne(id);
+  }
+
+  async remove(id: string, requestingUser: any) {
+    this.assertSchoolAccess(id, requestingUser);
+    await this.findOne(id); // 404 if not found
+    await this.dataSource.transaction(async (manager) => {
+      const q = (table: string) =>
+        manager.query(`DELETE FROM "${table}" WHERE "schoolId" = $1`, [id]);
+      await q('scores');
+      await q('psychometric_assessments');
+      await q('result_comments');
+      await q('attendance_records');
+      await q('class_results');
+      await q('students');
+      await q('subjects');
+      await q('notifications');
+      await q('messages');
+      await q('invite_tokens');
+      await q('teachers');
+      await q('classes');
+      await manager.query(`UPDATE "users" SET "schoolId" = NULL WHERE "schoolId" = $1`, [id]);
+      await manager.query(`DELETE FROM "schools" WHERE "id" = $1`, [id]);
+    });
   }
 
   assertSchoolAccess(schoolId: string, user: any) {
