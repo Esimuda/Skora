@@ -24,8 +24,38 @@ export class TeachersService {
   ) {}
 
   async invite(schoolId: string, dto: InviteTeacherDto, invitedByUser: any) {
-    const existing = await this.users.findByEmail(dto.email);
-    if (existing) throw new ConflictException('A user with this email already exists');
+    const existingUser = await this.users.findByEmail(dto.email);
+
+    if (existingUser) {
+      // If this user is already a pending teacher at this school, resend the invite
+      const existingTeacher = await this.repo.findOne({ where: { email: dto.email, schoolId } });
+      if (!existingTeacher || existingTeacher.status !== 'pending') {
+        throw new ConflictException('A user with this email already exists');
+      }
+
+      // Invalidate old tokens and issue a fresh one
+      await this.tokenRepo.delete({ email: dto.email, schoolId });
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await this.tokenRepo.save(this.tokenRepo.create({ token, email: dto.email, schoolId, expiresAt }));
+
+      const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
+      const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
+
+      this.schools.findOne(schoolId).catch(() => null).then((schoolRecord) => {
+        const schoolName = schoolRecord?.name ?? 'your school';
+        this.mail.sendTeacherInvite({
+          to: dto.email,
+          teacherName: `${existingTeacher.firstName} ${existingTeacher.lastName}`,
+          schoolName,
+          principalName: `${invitedByUser.firstName} ${invitedByUser.lastName}`,
+          inviteUrl,
+          temporaryPassword: '(use your existing temporary password)',
+        }).catch(() => { /* email failure is non-fatal */ });
+      });
+
+      return { teacher: existingTeacher, inviteUrl };
+    }
 
     const password = dto.temporaryPassword ?? this.generateTempPassword();
     const hash = await bcrypt.hash(password, 12);
