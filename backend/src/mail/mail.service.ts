@@ -1,22 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
+  private resend: Resend;
+  private from: string;
   private readonly logger = new Logger(MailService.name);
 
   constructor(private config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: config.get('MAIL_HOST', 'smtp.gmail.com'),
-      port: config.get<number>('MAIL_PORT', 587),
-      secure: false,
-      auth: {
-        user: config.get('MAIL_USER'),
-        pass: config.get('MAIL_PASS'),
-      },
-    });
+    this.resend = new Resend(config.get('RESEND_API_KEY'));
+    this.from = config.get('MAIL_FROM', 'Skora RMS <onboarding@resend.dev>');
   }
 
   async sendTeacherInvite(opts: {
@@ -50,16 +44,13 @@ export class MailService {
       </div>
     `;
 
-    try {
-      await this.transporter.sendMail({
-        from: this.config.get('MAIL_FROM') || `"Skora RMS" <${this.config.get('MAIL_USER')}>`,
-        to: opts.to,
-        subject: `You're invited to join ${opts.schoolName} on Skora RMS`,
-        html,
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send invite email to ${opts.to}: ${err.message}`);
-    }
+    const { error } = await this.resend.emails.send({
+      from: this.from,
+      to: opts.to,
+      subject: `You're invited to join ${opts.schoolName} on Skora RMS`,
+      html,
+    });
+    if (error) this.logger.error(`Failed to send invite email to ${opts.to}: ${error.message}`);
   }
 
   async sendResultSubmittedAlert(opts: {
@@ -87,16 +78,13 @@ export class MailService {
       </div>
     `;
 
-    try {
-      await this.transporter.sendMail({
-        from: this.config.get('MAIL_FROM') || `"Skora RMS" <${this.config.get('MAIL_USER')}>`,
-        to: opts.to,
-        subject: `Results Ready — ${opts.className} | ${opts.term} term`,
-        html,
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send result alert to ${opts.to}: ${err.message}`);
-    }
+    const { error } = await this.resend.emails.send({
+      from: this.from,
+      to: opts.to,
+      subject: `Results Ready — ${opts.className} | ${opts.term} term`,
+      html,
+    });
+    if (error) this.logger.error(`Failed to send result alert to ${opts.to}: ${error.message}`);
   }
 
   async sendResultDecisionAlert(opts: {
@@ -126,15 +114,12 @@ export class MailService {
       </div>
     `;
 
-    try {
-      await this.transporter.sendMail({
-        from: this.config.get('MAIL_FROM') || `"Skora RMS" <${this.config.get('MAIL_USER')}>`,
-        to: opts.to,
-        subject: `${approved ? '✅ Results Approved' : '↩ Results Returned'} — ${opts.className}`,
-        html,
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send decision email to ${opts.to}: ${err.message}`);
-    }
+    const { error } = await this.resend.emails.send({
+      from: this.from,
+      to: opts.to,
+      subject: `${approved ? '✅ Results Approved' : '↩ Results Returned'} — ${opts.className}`,
+      html,
+    });
+    if (error) this.logger.error(`Failed to send decision email to ${opts.to}: ${error.message}`);
   }
 }
