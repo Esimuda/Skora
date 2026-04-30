@@ -66,7 +66,7 @@ export const TeachersPage = () => {
         setTeachers((prev) => prev.map((t) => t.id === editingId ? updated : t));
       } else {
         if (!validate()) { setSaving(false); return; }
-        const created = await api.post<Teacher>(`/schools/${schoolId}/teachers/invite`, {
+        const { teacher: created } = await api.post<{ teacher: Teacher; inviteUrl: string }>(`/schools/${schoolId}/teachers/invite`, {
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
           email: form.email.trim(),

@@ -22,7 +22,7 @@ function isNetworkError(e: unknown): boolean {
   );
 }
 
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 async function request<T>(
   method: string,
@@ -70,6 +70,9 @@ async function request<T>(
       await queue.enqueue(method, path, body);
       window.dispatchEvent(new CustomEvent('skora:offline-queued'));
       return (body ?? {}) as T;
+    }
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('Request timed out — please try again');
     }
     throw e;
   }
