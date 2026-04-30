@@ -52,7 +52,7 @@ export class MailService {
 
     try {
       await this.transporter.sendMail({
-        from: `"Skora RMS" <${this.config.get('MAIL_FROM', this.config.get('MAIL_USER'))}>`,
+        from: this.config.get('MAIL_FROM') || `"Skora RMS" <${this.config.get('MAIL_USER')}>`,
         to: opts.to,
         subject: `You're invited to join ${opts.schoolName} on Skora RMS`,
         html,
@@ -89,7 +89,7 @@ export class MailService {
 
     try {
       await this.transporter.sendMail({
-        from: `"Skora RMS" <${this.config.get('MAIL_FROM', this.config.get('MAIL_USER'))}>`,
+        from: this.config.get('MAIL_FROM') || `"Skora RMS" <${this.config.get('MAIL_USER')}>`,
         to: opts.to,
         subject: `Results Ready — ${opts.className} | ${opts.term} term`,
         html,
@@ -128,7 +128,7 @@ export class MailService {
 
     try {
       await this.transporter.sendMail({
-        from: `"Skora RMS" <${this.config.get('MAIL_FROM', this.config.get('MAIL_USER'))}>`,
+        from: this.config.get('MAIL_FROM') || `"Skora RMS" <${this.config.get('MAIL_USER')}>`,
         to: opts.to,
         subject: `${approved ? '✅ Results Approved' : '↩ Results Returned'} — ${opts.className}`,
         html,
