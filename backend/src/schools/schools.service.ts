@@ -50,7 +50,7 @@ export class SchoolsService {
       await q('invite_tokens');
       await q('teachers');
       await q('classes');
-      await manager.query(`UPDATE "users" SET "schoolId" = NULL WHERE "schoolId" = $1`, [id]);
+      await manager.query(`DELETE FROM "users" WHERE "schoolId" = $1`, [id]);
       await manager.query(`DELETE FROM "schools" WHERE "id" = $1`, [id]);
     });
   }

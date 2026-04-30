@@ -9,7 +9,7 @@ function App() {
 
   return (
     <HashRouter>
-      {isAuthenticated ? (
+      {isAuthenticated && user?.schoolId ? (
         user?.role === "teacher" ? (
           <TeacherRoutes />
         ) : (
