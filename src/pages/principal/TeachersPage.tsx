@@ -47,10 +47,6 @@ export const TeachersPage = () => {
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
       e.email = "Enter a valid email address";
-    const duplicate = teachers.find(
-      (t) => t.email.toLowerCase() === form.email.trim().toLowerCase() && t.id !== editingId,
-    );
-    if (duplicate) e.email = "A teacher with this email already exists";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
