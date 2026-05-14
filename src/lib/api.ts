@@ -56,6 +56,14 @@ async function request<T>(
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      // Auth token is stale or the account has been deleted — clear it and
+      // notify the app so the router can drop the user back to /login.
+      if (res.status === 401) {
+        try {
+          localStorage.removeItem('skora-auth-storage');
+        } catch { /* ignore */ }
+        window.dispatchEvent(new CustomEvent('skora:auth-expired'));
+      }
       const err = await res.json().catch(() => ({ message: 'Request failed' }));
       throw new Error(err.message ?? `Request failed (${res.status})`);
     }

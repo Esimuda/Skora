@@ -282,6 +282,10 @@ interface DataStore {
     term: Term,
     academicYear: string,
   ) => ComputedStudentResult[];
+
+  // Reset — wipes every collection back to its initial empty state. Called on
+  // logout / auth expiry / school deletion so no stale data leaks across users.
+  clear: () => void;
 }
 
 export interface ComputedStudentResult {
@@ -721,6 +725,21 @@ export const useDataStore = create<DataStore>()(
           classAverage,
         }));
       },
+
+      clear: () =>
+        set({
+          school: null,
+          classes: [],
+          teachers: [],
+          students: [],
+          subjects: [],
+          scores: [],
+          psychometric: [],
+          comments: [],
+          attendance: [],
+          resultStatuses: [],
+          notifications: [],
+        }),
     }),
     {
       name: "skora-data-store",

@@ -77,6 +77,7 @@ const Icon = ({
 
 export const SettingsPage = () => {
   const { school, setSchool } = useDataStore();
+  const clearData = useDataStore((s) => s.clear);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -179,6 +180,7 @@ export const SettingsPage = () => {
     setDeleteError(null);
     try {
       await api.delete(`/schools/${user.schoolId}`);
+      clearData();
       logout();
       navigate("/login");
     } catch (e: any) {

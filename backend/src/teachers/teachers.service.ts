@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { Teacher } from './teacher.entity';
@@ -17,6 +17,7 @@ export class TeachersService {
   constructor(
     @InjectRepository(Teacher) private repo: Repository<Teacher>,
     @InjectRepository(InviteToken) private tokenRepo: Repository<InviteToken>,
+    @InjectDataSource() private dataSource: DataSource,
     private users: UsersService,
     private mail: MailService,
     private schools: SchoolsService,
@@ -146,7 +147,19 @@ export class TeachersService {
 
   async remove(schoolId: string, id: string) {
     const t = await this.findOne(schoolId, id);
-    await this.repo.remove(t);
+
+    // Wipe the teacher account end-to-end so re-login is impossible without
+    // a fresh invite: their user row, any pending invite tokens, and any
+    // class assignments pointing at them.
+    await this.dataSource.transaction(async (manager) => {
+      await manager.query(`DELETE FROM "invite_tokens" WHERE "email" = $1 AND "schoolId" = $2`, [t.email, schoolId]);
+      await manager.query(
+        `UPDATE "classes" SET "teacherId" = NULL, "teacherName" = NULL WHERE "teacherId" = $1 AND "schoolId" = $2`,
+        [t.id, schoolId],
+      );
+      await manager.query(`DELETE FROM "users" WHERE "id" = $1`, [t.userId]);
+      await manager.query(`DELETE FROM "teachers" WHERE "id" = $1`, [t.id]);
+    });
   }
 
   private generateTempPassword() {

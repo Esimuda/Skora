@@ -2,12 +2,17 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
+import { SchoolsService } from '../schools/schools.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private users: UsersService, private jwt: JwtService) {}
+  constructor(
+    private users: UsersService,
+    private schools: SchoolsService,
+    private jwt: JwtService,
+  ) {}
 
   async signup(dto: SignupDto) {
     const exists = await this.users.findByEmail(dto.email);
@@ -24,6 +29,19 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    // An account whose school has been deleted (or was never tied to one) is
+    // effectively a dead account. Refuse the login so the user must re-register.
+    // Platform-level admins are exempt — they don't belong to a school.
+    if (user.role !== 'admin') {
+      if (!user.schoolId) {
+        throw new UnauthorizedException('This account no longer has an active school. Please register again.');
+      }
+      const school = await this.schools.findOne(user.schoolId).catch(() => null);
+      if (!school) {
+        throw new UnauthorizedException('This account no longer has an active school. Please register again.');
+      }
+    }
 
     return this.buildTokenResponse(user);
   }
