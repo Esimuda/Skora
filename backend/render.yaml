@@ -33,8 +33,8 @@ services:
       - key: MAIL_PORT
         value: "587"
       - key: MAIL_USER
-        sync: false
+        sync: false          # set in Render dashboard — Gmail address
       - key: MAIL_PASS
-        sync: false
+        sync: false          # Gmail App Password (16 chars, no spaces)
       - key: MAIL_FROM
-        sync: false
+        sync: false          # e.g. "Skora RMS <your-gmail@gmail.com>"

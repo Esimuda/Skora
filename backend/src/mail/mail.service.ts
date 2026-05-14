@@ -1,16 +1,60 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private resend: Resend;
+  private transporter: nodemailer.Transporter | null = null;
   private from: string;
+  private readonly enabled: boolean;
   private readonly logger = new Logger(MailService.name);
 
   constructor(private config: ConfigService) {
-    this.resend = new Resend(config.get('RESEND_API_KEY'));
-    this.from = config.get('MAIL_FROM', 'Skora RMS <onboarding@resend.dev>');
+    const user = config.get<string>('MAIL_USER');
+    const pass = config.get<string>('MAIL_PASS');
+    this.enabled = !!(user && pass);
+    this.from = config.get('MAIL_FROM') || (user ? `Skora RMS <${user}>` : '');
+
+    if (!this.enabled) {
+      this.logger.warn(
+        'MAIL_USER / MAIL_PASS are not set — emails will NOT be sent. ' +
+          'For Gmail: enable 2FA, then create an App Password at https://myaccount.google.com/apppasswords and set MAIL_USER + MAIL_PASS.',
+      );
+      return;
+    }
+
+    this.transporter = nodemailer.createTransport({
+      host: config.get('MAIL_HOST', 'smtp.gmail.com'),
+      port: config.get<number>('MAIL_PORT', 587),
+      secure: false,
+      auth: { user, pass },
+    });
+
+    this.transporter.verify().then(
+      () => this.logger.log(`SMTP transport ready (host=${config.get('MAIL_HOST', 'smtp.gmail.com')}, user=${user})`),
+      (err) => this.logger.error(`SMTP transport verification failed: ${err?.message ?? err}`),
+    );
+  }
+
+  private async send(opts: { to: string; subject: string; html: string; context: string }) {
+    if (!this.enabled || !this.transporter) {
+      this.logger.warn(`[${opts.context}] Skipped email to ${opts.to} — SMTP not configured`);
+      return;
+    }
+    try {
+      const info = await this.transporter.sendMail({
+        from: this.from,
+        to: opts.to,
+        subject: opts.subject,
+        html: opts.html,
+      });
+      this.logger.log(`[${opts.context}] Sent to ${opts.to} (messageId=${info.messageId})`);
+    } catch (err: any) {
+      this.logger.error(
+        `[${opts.context}] Failed to send email to ${opts.to}: ${err?.message ?? err}`,
+        err?.stack,
+      );
+    }
   }
 
   async sendTeacherInvite(opts: {
@@ -44,13 +88,12 @@ export class MailService {
       </div>
     `;
 
-    const { error } = await this.resend.emails.send({
-      from: this.from,
+    await this.send({
       to: opts.to,
       subject: `You're invited to join ${opts.schoolName} on Skora RMS`,
       html,
+      context: 'teacher-invite',
     });
-    if (error) this.logger.error(`Failed to send invite email to ${opts.to}: ${error.message}`);
   }
 
   async sendResultSubmittedAlert(opts: {
@@ -78,13 +121,12 @@ export class MailService {
       </div>
     `;
 
-    const { error } = await this.resend.emails.send({
-      from: this.from,
+    await this.send({
       to: opts.to,
       subject: `Results Ready — ${opts.className} | ${opts.term} term`,
       html,
+      context: 'result-submitted',
     });
-    if (error) this.logger.error(`Failed to send result alert to ${opts.to}: ${error.message}`);
   }
 
   async sendResultDecisionAlert(opts: {
@@ -114,12 +156,11 @@ export class MailService {
       </div>
     `;
 
-    const { error } = await this.resend.emails.send({
-      from: this.from,
+    await this.send({
       to: opts.to,
       subject: `${approved ? '✅ Results Approved' : '↩ Results Returned'} — ${opts.className}`,
       html,
+      context: `result-${opts.decision}`,
     });
-    if (error) this.logger.error(`Failed to send decision email to ${opts.to}: ${error.message}`);
   }
 }
