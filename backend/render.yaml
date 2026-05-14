@@ -28,13 +28,7 @@ services:
         value: 7d
       - key: FRONTEND_URL
         sync: false          # set to your Vercel URL in the dashboard
-      - key: MAIL_HOST
-        value: smtp.gmail.com
-      - key: MAIL_PORT
-        value: "587"
-      - key: MAIL_USER
-        sync: false          # set in Render dashboard — Gmail address
-      - key: MAIL_PASS
-        sync: false          # Gmail App Password (16 chars, no spaces)
+      - key: BREVO_API_KEY
+        sync: false          # set in Render dashboard — from https://app.brevo.com/settings/keys/api
       - key: MAIL_FROM
-        sync: false          # e.g. "Skora RMS <your-gmail@gmail.com>"
+        sync: false          # must match a verified sender on Brevo, e.g. "Skora RMS <you@gmail.com>"

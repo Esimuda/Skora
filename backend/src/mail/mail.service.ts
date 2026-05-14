@@ -1,54 +1,76 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
+
+function parseFrom(raw: string): { name: string; email: string } {
+  // Accepts "Name <email@host>" or a bare email address.
+  const match = raw.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) {
+    const name = match[1].replace(/^["']|["']$/g, '').trim() || 'Skora RMS';
+    return { name, email: match[2].trim() };
+  }
+  return { name: 'Skora RMS', email: raw.trim() };
+}
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter | null = null;
-  private from: string;
+  private apiKey: string | undefined;
+  private from: { name: string; email: string };
   private readonly enabled: boolean;
   private readonly logger = new Logger(MailService.name);
 
   constructor(private config: ConfigService) {
-    const user = config.get<string>('MAIL_USER');
-    const pass = config.get<string>('MAIL_PASS');
-    this.enabled = !!(user && pass);
-    this.from = config.get('MAIL_FROM') || (user ? `Skora RMS <${user}>` : '');
+    this.apiKey = config.get<string>('BREVO_API_KEY');
+    const rawFrom = config.get<string>('MAIL_FROM', '');
+    this.from = parseFrom(rawFrom);
+    this.enabled = !!this.apiKey && !!this.from.email;
 
-    if (!this.enabled) {
+    if (!this.apiKey) {
       this.logger.warn(
-        'MAIL_USER / MAIL_PASS are not set — emails will NOT be sent. ' +
-          'For Gmail: enable 2FA, then create an App Password at https://myaccount.google.com/apppasswords and set MAIL_USER + MAIL_PASS.',
+        'BREVO_API_KEY is not set — emails will NOT be sent. Create one at https://app.brevo.com/settings/keys/api',
       );
-      return;
+    } else if (!this.from.email) {
+      this.logger.warn(
+        'MAIL_FROM is not set — emails will NOT be sent. Use the email you verified as a sender on Brevo (e.g. "Skora RMS <skora.systems@gmail.com>").',
+      );
+    } else {
+      this.logger.log(`Brevo mail transport ready (sender=${this.from.name} <${this.from.email}>)`);
     }
-
-    this.transporter = nodemailer.createTransport({
-      host: config.get('MAIL_HOST', 'smtp.gmail.com'),
-      port: config.get<number>('MAIL_PORT', 587),
-      secure: false,
-      auth: { user, pass },
-    });
-
-    this.transporter.verify().then(
-      () => this.logger.log(`SMTP transport ready (host=${config.get('MAIL_HOST', 'smtp.gmail.com')}, user=${user})`),
-      (err) => this.logger.error(`SMTP transport verification failed: ${err?.message ?? err}`),
-    );
   }
 
   private async send(opts: { to: string; subject: string; html: string; context: string }) {
-    if (!this.enabled || !this.transporter) {
-      this.logger.warn(`[${opts.context}] Skipped email to ${opts.to} — SMTP not configured`);
+    if (!this.enabled) {
+      this.logger.warn(`[${opts.context}] Skipped email to ${opts.to} — Brevo not configured`);
       return;
     }
     try {
-      const info = await this.transporter.sendMail({
-        from: this.from,
-        to: opts.to,
-        subject: opts.subject,
-        html: opts.html,
+      const response = await fetch(BREVO_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'api-key': this.apiKey!,
+          'content-type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender: this.from,
+          to: [{ email: opts.to }],
+          subject: opts.subject,
+          htmlContent: opts.html,
+        }),
       });
-      this.logger.log(`[${opts.context}] Sent to ${opts.to} (messageId=${info.messageId})`);
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const detail = body.message ?? body.code ?? response.statusText;
+        this.logger.error(
+          `[${opts.context}] Brevo rejected email to ${opts.to}: ${response.status} ${detail}`,
+        );
+        return;
+      }
+
+      const body = await response.json().catch(() => ({} as { messageId?: string }));
+      this.logger.log(`[${opts.context}] Sent to ${opts.to} (brevo messageId=${body.messageId ?? 'n/a'})`);
     } catch (err: any) {
       this.logger.error(
         `[${opts.context}] Failed to send email to ${opts.to}: ${err?.message ?? err}`,
