@@ -28,6 +28,8 @@ export const TeachersPage = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resentId, setResentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
@@ -87,6 +89,20 @@ export const TeachersPage = () => {
     setShowForm(true);
     setErrors({});
     setApiError(null);
+  };
+
+  const handleResend = async (teacher: Teacher) => {
+    setResendingId(teacher.id);
+    setApiError(null);
+    try {
+      await api.post(`/schools/${schoolId}/teachers/${teacher.id}/resend-invite`, {});
+      setResentId(teacher.id);
+      setTimeout(() => setResentId((id) => (id === teacher.id ? null : id)), 2500);
+    } catch (e: any) {
+      setApiError(e.message ?? "Failed to resend invite");
+    } finally {
+      setResendingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -277,6 +293,19 @@ export const TeachersPage = () => {
                     <p className="text-sm text-on-surface-variant">{teacher.email}</p>
                     <span className="badge-validated text-[10px]">{teacher.status}</span>
                     <div className="flex gap-1 justify-end">
+                      {teacher.status === "pending" && (
+                        <button
+                          onClick={() => handleResend(teacher)}
+                          disabled={resendingId === teacher.id}
+                          title={resentId === teacher.id ? "Invite resent" : "Resend invite email"}
+                          className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${resentId === teacher.id ? "text-secondary bg-secondary-container/40" : "text-on-surface-variant hover:text-primary hover:bg-surface-container-low"}`}
+                        >
+                          <Icon
+                            name={resentId === teacher.id ? "mark_email_read" : resendingId === teacher.id ? "hourglass_empty" : "forward_to_inbox"}
+                            className="text-base"
+                          />
+                        </button>
+                      )}
                       <button onClick={() => handleEdit(teacher)} className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors">
                         <Icon name="edit" className="text-base" />
                       </button>
@@ -339,13 +368,28 @@ export const TeachersPage = () => {
                       <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant">Cancel</button>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEdit(teacher)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant hover:bg-surface-container-low flex items-center justify-center gap-2 transition-colors">
-                        <Icon name="edit" className="text-base" /> Edit
-                      </button>
-                      <button onClick={() => setDeleteConfirmId(teacher.id)} className="flex-1 py-2.5 text-sm border border-error/30 text-error rounded-xl font-bold hover:bg-error-container/20 flex items-center justify-center gap-2 transition-colors">
-                        <Icon name="delete" className="text-base" /> Delete
-                      </button>
+                    <div className="flex flex-col gap-2">
+                      {teacher.status === "pending" && (
+                        <button
+                          onClick={() => handleResend(teacher)}
+                          disabled={resendingId === teacher.id}
+                          className={`py-2.5 text-sm rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${resentId === teacher.id ? "bg-secondary-container/40 text-on-secondary-container" : "border border-primary/30 text-primary hover:bg-primary/5"}`}
+                        >
+                          <Icon
+                            name={resentId === teacher.id ? "mark_email_read" : resendingId === teacher.id ? "hourglass_empty" : "forward_to_inbox"}
+                            className="text-base"
+                          />
+                          {resentId === teacher.id ? "Invite resent" : resendingId === teacher.id ? "Sending..." : "Resend Invite"}
+                        </button>
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEdit(teacher)} className="flex-1 py-2.5 text-sm border border-outline-variant/30 rounded-xl font-bold text-on-surface-variant hover:bg-surface-container-low flex items-center justify-center gap-2 transition-colors">
+                          <Icon name="edit" className="text-base" /> Edit
+                        </button>
+                        <button onClick={() => setDeleteConfirmId(teacher.id)} className="flex-1 py-2.5 text-sm border border-error/30 text-error rounded-xl font-bold hover:bg-error-container/20 flex items-center justify-center gap-2 transition-colors">
+                          <Icon name="delete" className="text-base" /> Delete
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

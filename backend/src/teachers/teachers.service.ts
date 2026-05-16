@@ -107,6 +107,39 @@ export class TeachersService {
     return { teacher, inviteUrl };
   }
 
+  async resendInvite(schoolId: string, id: string, invitedByUser: any) {
+    const teacher = await this.findOne(schoolId, id);
+    if (teacher.status !== 'pending') {
+      throw new BadRequestException('Only pending teachers can have their invite resent. Active/inactive teachers should manage their own password.');
+    }
+
+    // Rotate the temporary password so the email contains a working credential
+    // even if the teacher lost the original message. Invalidate any prior invite
+    // tokens for this email + school, then issue a fresh 7-day token.
+    const newPassword = this.generateTempPassword();
+    await this.users.update(teacher.userId, { password: await bcrypt.hash(newPassword, 12) });
+    await this.tokenRepo.delete({ email: teacher.email, schoolId });
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await this.tokenRepo.save(this.tokenRepo.create({ token, email: teacher.email, schoolId, expiresAt }));
+
+    const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
+    const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(teacher.email)}`;
+    const schoolRecord = await this.schools.findOne(schoolId).catch(() => null);
+    const schoolName = schoolRecord?.name ?? 'your school';
+
+    await this.mail.sendTeacherInvite({
+      to: teacher.email,
+      teacherName: `${teacher.firstName} ${teacher.lastName}`,
+      schoolName,
+      principalName: `${invitedByUser.firstName} ${invitedByUser.lastName}`,
+      inviteUrl,
+      temporaryPassword: newPassword,
+    });
+
+    return { teacher, inviteUrl };
+  }
+
   async acceptInvite(token: string) {
     const invite = await this.tokenRepo.findOne({ where: { token } });
     if (!invite || invite.used) throw new BadRequestException('Invalid or already used invite link');

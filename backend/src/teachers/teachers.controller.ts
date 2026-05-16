@@ -21,6 +21,12 @@ export class TeachersController {
     return this.service.invite(schoolId, dto, user);
   }
 
+  @Post(':id/resend-invite')
+  @Roles('school_admin', 'admin')
+  resendInvite(@Param('schoolId') schoolId: string, @Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.resendInvite(schoolId, id, user);
+  }
+
   @Get()
   @Roles('school_admin', 'admin')
   findAll(@Param('schoolId') schoolId: string) {
