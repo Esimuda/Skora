@@ -180,13 +180,23 @@ export const SettingsPage = () => {
     setDeleteError(null);
     try {
       await api.delete(`/schools/${user.schoolId}`);
-      clearData();
-      logout();
-      navigate("/login");
     } catch (e: any) {
       setDeleteError(e.message ?? "Failed to delete school");
       setDeleting(false);
+      return;
     }
+    // Server wipe succeeded — burn down every trace of the deleted principal on
+    // this device. Clear both Zustand stores, blow away the persisted entries
+    // explicitly (in case persist hasn't flushed yet), then force a full reload
+    // so no React component survives holding stale auth/data state.
+    clearData();
+    logout();
+    try { localStorage.removeItem("skora-auth-storage"); } catch { /* ignore */ }
+    try { localStorage.removeItem("skora-data-store"); } catch { /* ignore */ }
+    window.location.replace("/");
+    // navigate is unreachable after replace but kept defensively in case the
+    // browser delays the reload for an event-loop tick.
+    navigate("/login", { replace: true });
   };
 
   const inputCls = "input-inset";
