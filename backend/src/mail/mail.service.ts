@@ -1,76 +1,64 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
-
-function parseFrom(raw: string): { name: string; email: string } {
-  // Accepts "Name <email@host>" or a bare email address.
-  const match = raw.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
-  if (match) {
-    const name = match[1].replace(/^["']|["']$/g, '').trim() || 'Skora RMS';
-    return { name, email: match[2].trim() };
-  }
-  return { name: 'Skora RMS', email: raw.trim() };
-}
+const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 @Injectable()
 export class MailService {
   private apiKey: string | undefined;
-  private from: { name: string; email: string };
+  private from: string;
   private readonly enabled: boolean;
   private readonly logger = new Logger(MailService.name);
 
   constructor(private config: ConfigService) {
-    this.apiKey = config.get<string>('BREVO_API_KEY');
-    const rawFrom = config.get<string>('MAIL_FROM', '');
-    this.from = parseFrom(rawFrom);
-    this.enabled = !!this.apiKey && !!this.from.email;
+    this.apiKey = config.get<string>('RESEND_API_KEY');
+    this.from = config.get<string>('MAIL_FROM', '').trim();
+    this.enabled = !!this.apiKey && !!this.from;
 
     if (!this.apiKey) {
       this.logger.warn(
-        'BREVO_API_KEY is not set — emails will NOT be sent. Create one at https://app.brevo.com/settings/keys/api',
+        'RESEND_API_KEY is not set — emails will NOT be sent. Create one at https://resend.com/api-keys',
       );
-    } else if (!this.from.email) {
+    } else if (!this.from) {
       this.logger.warn(
-        'MAIL_FROM is not set — emails will NOT be sent. Use the email you verified as a sender on Brevo (e.g. "Skora RMS <skora.systems@gmail.com>").',
+        'MAIL_FROM is not set — emails will NOT be sent. Use an address on a domain you verified at https://resend.com/domains (e.g. "Skora RMS <noreply@yourdomain.xyz>").',
       );
     } else {
-      this.logger.log(`Brevo mail transport ready (sender=${this.from.name} <${this.from.email}>)`);
+      this.logger.log(`Resend mail transport ready (sender=${this.from})`);
     }
   }
 
   private async send(opts: { to: string; subject: string; html: string; context: string }) {
     if (!this.enabled) {
-      this.logger.warn(`[${opts.context}] Skipped email to ${opts.to} — Brevo not configured`);
+      this.logger.warn(`[${opts.context}] Skipped email to ${opts.to} — Resend not configured`);
       return;
     }
     try {
-      const response = await fetch(BREVO_ENDPOINT, {
+      const response = await fetch(RESEND_ENDPOINT, {
         method: 'POST',
         headers: {
-          'api-key': this.apiKey!,
+          Authorization: `Bearer ${this.apiKey}`,
           'content-type': 'application/json',
-          accept: 'application/json',
         },
         body: JSON.stringify({
-          sender: this.from,
-          to: [{ email: opts.to }],
+          from: this.from,
+          to: [opts.to],
           subject: opts.subject,
-          htmlContent: opts.html,
+          html: opts.html,
         }),
       });
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        const detail = body.message ?? body.code ?? response.statusText;
+        const detail = body.message ?? body.name ?? response.statusText;
         this.logger.error(
-          `[${opts.context}] Brevo rejected email to ${opts.to}: ${response.status} ${detail}`,
+          `[${opts.context}] Resend rejected email to ${opts.to}: ${response.status} ${detail}`,
         );
         return;
       }
 
-      const body = await response.json().catch(() => ({} as { messageId?: string }));
-      this.logger.log(`[${opts.context}] Sent to ${opts.to} (brevo messageId=${body.messageId ?? 'n/a'})`);
+      const body = await response.json().catch(() => ({} as { id?: string }));
+      this.logger.log(`[${opts.context}] Sent to ${opts.to} (resend id=${body.id ?? 'n/a'})`);
     } catch (err: any) {
       this.logger.error(
         `[${opts.context}] Failed to send email to ${opts.to}: ${err?.message ?? err}`,

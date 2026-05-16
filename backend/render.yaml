@@ -28,7 +28,7 @@ services:
         value: 7d
       - key: FRONTEND_URL
         sync: false          # set to your Vercel URL in the dashboard
-      - key: BREVO_API_KEY
-        sync: false          # set in Render dashboard — from https://app.brevo.com/settings/keys/api
+      - key: RESEND_API_KEY
+        sync: false          # set in Render dashboard — from https://resend.com/api-keys
       - key: MAIL_FROM
-        sync: false          # must match a verified sender on Brevo, e.g. "Skora RMS <you@gmail.com>"
+        sync: false          # must use an address on a verified Resend domain, e.g. "Skora RMS <noreply@yourdomain.xyz>"
