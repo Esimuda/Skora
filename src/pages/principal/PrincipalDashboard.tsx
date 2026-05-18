@@ -1,4 +1,10 @@
 import { useState, useEffect } from 'react';
+import {
+  TermSelector,
+  getCurrentTerm,
+  getCurrentAcademicYear,
+  Term,
+} from '@/components/ui/TermSelector';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
@@ -38,15 +44,30 @@ export const PrincipalDashboard = () => {
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [results, setResults] = useState<ClassResult[]>([]);
+  const [selectedTerm, setSelectedTerm] = useState<Term>(() => getCurrentTerm());
+  const [selectedYear, setSelectedYear] = useState<string>(() => getCurrentAcademicYear());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isArchive =
+    selectedTerm !== getCurrentTerm() || selectedYear !== getCurrentAcademicYear();
+
+  // Builds /path?term=...&academicYear=... so downstream pages stay in sync.
+  const withTermYear = (path: string) => {
+    const qs = new URLSearchParams({ term: selectedTerm, academicYear: selectedYear }).toString();
+    return `${path}?${qs}`;
+  };
+
   useEffect(() => {
     if (!schoolId) return;
+    setLoading(true);
+    const yearParam = encodeURIComponent(selectedYear);
     Promise.all([
       api.get<School>(`/schools/${schoolId}`),
       api.get<Class[]>(`/schools/${schoolId}/classes`),
-      api.get<ClassResult[]>(`/schools/${schoolId}/results`),
+      api.get<ClassResult[]>(
+        `/schools/${schoolId}/results?term=${selectedTerm}&academicYear=${yearParam}`,
+      ),
       api.get<Notification[]>('/notifications'),
     ]).then(([s, cls, res, notifs]) => {
       setSchool(s);
@@ -54,7 +75,7 @@ export const PrincipalDashboard = () => {
       setResults(res);
       setNotifications(notifs);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [schoolId]);
+  }, [schoolId, selectedTerm, selectedYear]);
 
   const pending = results.filter((r) => r.status === 'submitted');
   const approved = results.filter((r) => r.status === 'approved');
@@ -81,6 +102,27 @@ export const PrincipalDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-fade-in">
+        {/* Term + Academic Year picker — record-keeping view for past terms */}
+        <TermSelector
+          term={selectedTerm}
+          academicYear={selectedYear}
+          onTermChange={setSelectedTerm}
+          onAcademicYearChange={setSelectedYear}
+        />
+
+        {isArchive && (
+          <div className="ledger-card p-4 flex items-start gap-3 border-l-4 border-tertiary-fixed-dim">
+            <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontSize: 20 }}>
+              history
+            </span>
+            <div className="text-sm">
+              <p className="font-bold text-on-surface">Viewing an archived term</p>
+              <p className="text-on-surface-variant mt-0.5">
+                You're reviewing past results for record-keeping. Approvals and downloads on this page reflect the selected term and year.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -156,7 +198,7 @@ export const PrincipalDashboard = () => {
           <div className="ledger-card overflow-hidden">
             <div className="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
               <h3 className="font-headline font-bold text-xl text-primary">Pending Approvals</h3>
-              <button onClick={() => navigate('/principal/approvals')} className="text-sm text-primary font-semibold hover:underline">View all</button>
+              <button onClick={() => navigate(withTermYear('/principal/approvals'))} className="text-sm text-primary font-semibold hover:underline">View all</button>
             </div>
             {pending.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
@@ -172,7 +214,7 @@ export const PrincipalDashboard = () => {
                       <p className="text-xs text-on-surface-variant mt-0.5">{r.teacherName} · {r.term} term</p>
                     </div>
                     <button
-                      onClick={() => navigate('/principal/approvals')}
+                      onClick={() => navigate(withTermYear('/principal/approvals'))}
                       className="px-4 py-2 text-xs bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-xl font-bold hover:opacity-90 transition-opacity"
                     >
                       Review
@@ -187,7 +229,7 @@ export const PrincipalDashboard = () => {
           <div className="ledger-card overflow-hidden">
             <div className="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
               <h3 className="font-headline font-bold text-xl text-primary">Approved Results</h3>
-              <button onClick={() => navigate('/principal/downloads')} className="text-sm text-primary font-semibold hover:underline">Downloads</button>
+              <button onClick={() => navigate(withTermYear('/principal/downloads'))} className="text-sm text-primary font-semibold hover:underline">Downloads</button>
             </div>
             {approved.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
@@ -203,7 +245,7 @@ export const PrincipalDashboard = () => {
                       <p className="text-xs text-on-surface-variant mt-0.5">{r.teacherName}</p>
                     </div>
                     <button
-                      onClick={() => navigate('/principal/downloads')}
+                      onClick={() => navigate(withTermYear('/principal/downloads'))}
                       className="px-4 py-2 text-xs border border-outline-variant/30 text-on-surface-variant rounded-xl font-bold hover:bg-surface-container-low transition-colors"
                     >
                       Print
@@ -220,8 +262,8 @@ export const PrincipalDashboard = () => {
           <h3 className="font-headline font-bold text-lg md:text-xl text-primary mb-4 md:mb-5">Quick Actions</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Approvals', desc: `${pending.length} pending`,    icon: 'verified',  path: '/principal/approvals', highlight: pending.length > 0 },
-              { label: 'Downloads', desc: 'Print approved results',        icon: 'download',  path: '/principal/downloads', highlight: false },
+              { label: 'Approvals', desc: `${pending.length} pending`,    icon: 'verified',  path: withTermYear('/principal/approvals'), highlight: pending.length > 0 },
+              { label: 'Downloads', desc: 'Print approved results',        icon: 'download',  path: withTermYear('/principal/downloads'), highlight: false },
               { label: 'Classes',   desc: `${classes.length} classes`,     icon: 'school',    path: '/principal/classes',   highlight: false },
               { label: 'Settings',  desc: 'School configuration',          icon: 'settings',  path: '/principal/settings',  highlight: false },
             ].map((qa) => (

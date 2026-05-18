@@ -33,7 +33,7 @@ yarn-error.log*
 # vercel
 .vercel
 
-# Claude Code local config
+# local editor config
 .claude/
 
 # typescript

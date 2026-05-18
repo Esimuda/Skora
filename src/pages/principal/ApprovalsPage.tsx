@@ -1,7 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuthStore } from "@/store/authStore";
 import { api } from "@/lib/api";
+import {
+  TermSelector,
+  getCurrentTerm,
+  getCurrentAcademicYear,
+  Term,
+} from "@/components/ui/TermSelector";
 
 const formatDate = (iso?: string) => {
   if (!iso) return "—";
@@ -49,6 +56,25 @@ export const ApprovalsPage = () => {
   const user = useAuthStore((s) => s.user);
   const schoolId = user?.schoolId ?? "";
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTerm = useMemo<Term>(() => {
+    const t = searchParams.get("term");
+    return t === "first" || t === "second" || t === "third" ? t : getCurrentTerm();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const initialYear = useMemo<string>(() => {
+    return searchParams.get("academicYear") ?? getCurrentAcademicYear();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [selectedTerm, setSelectedTerm] = useState<Term>(initialTerm);
+  const [selectedYear, setSelectedYear] = useState<string>(initialYear);
+
+  useEffect(() => {
+    setSearchParams(
+      { term: selectedTerm, academicYear: selectedYear },
+      { replace: true },
+    );
+  }, [selectedTerm, selectedYear, setSearchParams]);
+
   const [results, setResults] = useState<ClassResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedResult, setSelectedResult] = useState<ClassResult | null>(null);
@@ -61,11 +87,18 @@ export const ApprovalsPage = () => {
 
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
-    api.get<ClassResult[]>(`/schools/${schoolId}/results`)
+    setLoading(true);
+    const yearParam = encodeURIComponent(selectedYear);
+    api.get<ClassResult[]>(
+      `/schools/${schoolId}/results?term=${selectedTerm}&academicYear=${yearParam}`,
+    )
       .then(setResults)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [schoolId]);
+  }, [schoolId, selectedTerm, selectedYear]);
+
+  const isArchive =
+    selectedTerm !== getCurrentTerm() || selectedYear !== getCurrentAcademicYear();
 
   const pending = results.filter((r) => r.status === "submitted");
   const approved = results.filter((r) => r.status === "approved");
@@ -147,6 +180,28 @@ export const ApprovalsPage = () => {
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Result Approvals</h2>
           <p className="text-on-surface-variant text-sm mt-1">Review submitted results, add your comment, then approve or return to teacher</p>
         </div>
+
+        {/* Term + Academic Year picker */}
+        <TermSelector
+          term={selectedTerm}
+          academicYear={selectedYear}
+          onTermChange={setSelectedTerm}
+          onAcademicYearChange={setSelectedYear}
+        />
+
+        {isArchive && (
+          <div className="ledger-card p-4 flex items-start gap-3 border-l-4 border-tertiary-fixed-dim">
+            <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontSize: 20 }}>
+              history
+            </span>
+            <div className="text-sm">
+              <p className="font-bold text-on-surface">Archived term</p>
+              <p className="text-on-surface-variant mt-0.5">
+                You're reviewing approvals from a past term for record-keeping. Approve/Return actions still work if there are pending items here.
+              </p>
+            </div>
+          </div>
+        )}
 
         {apiError && (
           <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{apiError}</div>

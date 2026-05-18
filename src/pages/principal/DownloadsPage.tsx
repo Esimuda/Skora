@@ -5,10 +5,16 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import {
+  TermSelector,
+  getCurrentTerm,
+  getCurrentAcademicYear,
+} from "@/components/ui/TermSelector";
 import {
   Term,
   StudentResult,
@@ -25,9 +31,6 @@ import {
 import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
 import { ModernResultSheet } from "@/templates/ModernResultSheet";
 import { HybridResultSheet } from "@/templates/HybridResultSheet";
-
-const CURRENT_TERM: Term = "first";
-const CURRENT_YEAR = "2024/2025";
 
 // Shape returned by GET /schools/:schoolId/results/:classId/computed
 interface ApiComputedResult {
@@ -83,12 +86,14 @@ function TemplateResultSheet({
   result,
   school,
   subjects,
+  term,
 }: {
   result: ApiComputedResult;
   school: School;
   subjects: Subject[];
+  term: Term;
 }) {
-  const studentResult = toStudentResult(result, CURRENT_TERM, subjects);
+  const studentResult = toStudentResult(result, term, subjects);
 
   switch (school.templateId) {
     case "modern":
@@ -106,8 +111,9 @@ function buildResultHTML(
   result: ApiComputedResult,
   school: School,
   subjects: Subject[],
+  term: Term,
 ): string {
-  const studentResult = toStudentResult(result, CURRENT_TERM, subjects);
+  const studentResult = toStudentResult(result, term, subjects);
 
   let markup: string;
   switch (school.templateId) {
@@ -149,6 +155,7 @@ async function generateStudentPDF(
   result: ApiComputedResult,
   school: School,
   subjects: Subject[],
+  term: Term,
 ): Promise<Blob> {
   const container = document.createElement("div");
   container.style.cssText =
@@ -159,7 +166,7 @@ async function generateStudentPDF(
 
   flushSync(() => {
     root.render(
-      <TemplateResultSheet result={result} school={school} subjects={subjects} />,
+      <TemplateResultSheet result={result} school={school} subjects={subjects} term={term} />,
     );
   });
 
@@ -198,6 +205,26 @@ export const DownloadsPage = () => {
   const { user } = useAuthStore();
   const schoolId = user?.schoolId ?? "";
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTerm = useMemo<Term>(() => {
+    const t = searchParams.get("term");
+    return t === "first" || t === "second" || t === "third" ? t : getCurrentTerm();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const initialYear = useMemo<string>(() => {
+    return searchParams.get("academicYear") ?? getCurrentAcademicYear();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [selectedTerm, setSelectedTerm] = useState<Term>(initialTerm);
+  const [selectedYear, setSelectedYear] = useState<string>(initialYear);
+
+  // Keep URL in sync so the principal can bookmark / share an archived view.
+  useEffect(() => {
+    setSearchParams(
+      { term: selectedTerm, academicYear: selectedYear },
+      { replace: true },
+    );
+  }, [selectedTerm, selectedYear, setSearchParams]);
+
   const [school, setSchool] = useState<School | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [approvedStatuses, setApprovedStatuses] = useState<ClassResult[]>([]);
@@ -209,25 +236,34 @@ export const DownloadsPage = () => {
   const [zipping, setZipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: fetch school info, classes, and approved result statuses in parallel
+  // Fetch school + classes once, then approved statuses whenever term/year change.
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
     setLoading(true);
+    const yearParam = encodeURIComponent(selectedYear);
     Promise.all([
       api.get<School>(`/schools/${schoolId}`),
       api.get<Class[]>(`/schools/${schoolId}/classes`),
       api.get<ClassResult[]>(
-        `/schools/${schoolId}/results?status=approved&term=${CURRENT_TERM}&academicYear=${encodeURIComponent(CURRENT_YEAR)}`,
+        `/schools/${schoolId}/results?status=approved&term=${selectedTerm}&academicYear=${yearParam}`,
       ),
     ])
       .then(([schoolData, classesData, statusesData]) => {
         setSchool(schoolData);
         setClasses(classesData);
         setApprovedStatuses(statusesData);
+        // If the previously selected class isn't approved in this term, clear it.
+        if (
+          selectedClassId &&
+          !statusesData.some((s) => s.classId === selectedClassId)
+        ) {
+          setSelectedClassId("");
+          setClassResults([]);
+        }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [schoolId]);
+  }, [schoolId, selectedTerm, selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When a class is selected: fetch its computed results and subjects in parallel
   useEffect(() => {
@@ -237,9 +273,10 @@ export const DownloadsPage = () => {
       return;
     }
     setLoadingResults(true);
+    const yearParam = encodeURIComponent(selectedYear);
     Promise.all([
       api.get<ApiComputedResult[]>(
-        `/schools/${schoolId}/results/${selectedClassId}/computed?term=${CURRENT_TERM}&academicYear=${encodeURIComponent(CURRENT_YEAR)}`,
+        `/schools/${schoolId}/results/${selectedClassId}/computed?term=${selectedTerm}&academicYear=${yearParam}`,
       ),
       api.get<Subject[]>(`/schools/${schoolId}/classes/${selectedClassId}/subjects`),
     ])
@@ -249,7 +286,10 @@ export const DownloadsPage = () => {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoadingResults(false));
-  }, [selectedClassId, schoolId]);
+  }, [selectedClassId, schoolId, selectedTerm, selectedYear]);
+
+  const isArchive =
+    selectedTerm !== getCurrentTerm() || selectedYear !== getCurrentAcademicYear();
 
   const selectedStatus = approvedStatuses.find((r) => r.classId === selectedClassId);
   const getClassName = (classId: string) =>
@@ -257,7 +297,7 @@ export const DownloadsPage = () => {
 
   const openResultInNewTab = (result: ApiComputedResult) => {
     if (!school) return;
-    const html = buildResultHTML(result, school, subjects);
+    const html = buildResultHTML(result, school, subjects, selectedTerm);
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
@@ -267,23 +307,35 @@ export const DownloadsPage = () => {
     if (!school || classResults.length === 0) return;
     setZipping(true);
 
+    // Strip path separators and other chars that are illegal in filenames on
+    // Windows/macOS. Critical: admission numbers like "SC/2024/045" would
+    // otherwise turn each "/" into a folder boundary inside the zip.
+    const safe = (s: string) =>
+      s.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, "_").trim() || "Unknown";
+
     const zip = new JSZip();
     const className = getClassName(selectedClassId);
-    const safeName = className.replace(/\s+/g, "_");
-    const folder = zip.folder(safeName)!;
+    const safeClassName = safe(className);
 
-    for (const result of classResults) {
-      const pdfBlob = await generateStudentPDF(result, school, subjects);
-      const fileName =
-        `${result.student.lastName}_${result.student.firstName}_${result.student.admissionNumber}.pdf`.replace(
-          /\s+/g,
-          "_",
-        );
-      folder.file(fileName, pdfBlob);
+    // Sort by class position so the serial-number prefix matches rank.
+    const ranked = [...classResults].sort((a, b) => a.position - b.position);
+    const padWidth = Math.max(2, String(ranked.length).length);
+
+    for (const result of ranked) {
+      const pdfBlob = await generateStudentPDF(result, school, subjects, selectedTerm);
+      const serial = String(result.position).padStart(padWidth, "0");
+      const lastName = safe(result.student.lastName).toUpperCase();
+      const firstName = safe(result.student.firstName);
+      // Flat: PDFs sit at the zip root, no per-student folders.
+      zip.file(`${serial}_${lastName}_${firstName}.pdf`, pdfBlob);
     }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    saveAs(zipBlob, `${safeName}_Results_${CURRENT_YEAR.replace("/", "-")}.zip`);
+    const termTag = selectedTerm === "first" ? "1st" : selectedTerm === "second" ? "2nd" : "3rd";
+    saveAs(
+      zipBlob,
+      `${safeClassName}_${termTag}-Term_${selectedYear.replace("/", "-")}.zip`,
+    );
     setZipping(false);
   };
 
@@ -327,6 +379,30 @@ export const DownloadsPage = () => {
           </p>
         </div>
 
+        {/* Term + Academic Year picker */}
+        <div className="mb-6">
+          <TermSelector
+            term={selectedTerm}
+            academicYear={selectedYear}
+            onTermChange={setSelectedTerm}
+            onAcademicYearChange={setSelectedYear}
+          />
+        </div>
+
+        {isArchive && (
+          <div className="mb-6 ledger-card p-4 flex items-start gap-3 border-l-4 border-tertiary-fixed-dim">
+            <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontSize: 20 }}>
+              history
+            </span>
+            <div className="text-sm">
+              <p className="font-bold text-on-surface">Archived term — re-downloading past results</p>
+              <p className="text-on-surface-variant mt-0.5">
+                You're viewing approved results from a previous term. PDFs reflect the data captured at that time.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Error banner */}
         {error && (
           <div className="mb-6 bg-error-container border border-error/20 rounded-xl p-4 text-on-error-container text-sm">
@@ -350,9 +426,13 @@ export const DownloadsPage = () => {
         {approvedStatuses.length === 0 ? (
           <div className="ledger-card flex flex-col items-center justify-center py-20 text-on-surface-variant">
             <div className="text-5xl mb-4">📭</div>
-            <p className="text-lg font-medium">No approved results yet</p>
+            <p className="text-lg font-medium">
+              No approved results for this term
+            </p>
             <p className="text-sm mt-1">
-              Approve results on the Approvals page to unlock downloads
+              {isArchive
+                ? "Nothing was approved for the selected term and academic year."
+                : "Approve results on the Approvals page to unlock downloads"}
             </p>
           </div>
         ) : (
@@ -390,7 +470,7 @@ export const DownloadsPage = () => {
                         <span className="badge-validated">✅ Approved</span>
                       </div>
                       <p className="text-sm text-on-surface-variant">
-                        First Term · {CURRENT_YEAR} ·{" "}
+                        {selectedTerm === "first" ? "1st" : selectedTerm === "second" ? "2nd" : "3rd"} Term · {selectedYear} ·{" "}
                         {loadingResults ? "…" : classResults.length} students ·
                         Teacher: {selectedStatus.teacherName}
                       </p>
@@ -552,6 +632,7 @@ export const DownloadsPage = () => {
                         result={result}
                         school={school}
                         subjects={subjects}
+                        term={selectedTerm}
                       />
                     ))}
                 </div>

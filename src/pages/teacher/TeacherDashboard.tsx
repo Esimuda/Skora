@@ -1,4 +1,10 @@
 import { useState, useEffect } from 'react';
+import {
+  TermSelector,
+  getCurrentTerm,
+  getCurrentAcademicYear,
+  Term,
+} from '@/components/ui/TermSelector';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
@@ -35,20 +41,26 @@ export const TeacherDashboard = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [results, setResults] = useState<ClassResult[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [selectedTerm, setSelectedTerm] = useState<Term>(() => getCurrentTerm());
+  const [selectedYear, setSelectedYear] = useState<string>(() => getCurrentAcademicYear());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
+    setLoading(true);
+    const yearParam = encodeURIComponent(selectedYear);
     Promise.all([
       api.get<Class[]>(`/schools/${schoolId}/classes`),
-      api.get<ClassResult[]>(`/schools/${schoolId}/results`),
+      api.get<ClassResult[]>(
+        `/schools/${schoolId}/results?term=${selectedTerm}&academicYear=${yearParam}`,
+      ),
       api.get<Notification[]>('/notifications'),
     ]).then(([cls, res, notifs]) => {
       setClasses(cls);
       setResults(res);
       setNotifications(notifs);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [schoolId]);
+  }, [schoolId, selectedTerm, selectedYear]);
 
   const totalStudents = classes.reduce((sum, c) => sum + ((c as any).studentCount ?? 0), 0);
   const unread = notifications.filter((n) => !n.isRead);
@@ -81,6 +93,13 @@ export const TeacherDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-fade-in">
+        {/* Term + Academic Year picker */}
+        <TermSelector
+          term={selectedTerm}
+          academicYear={selectedYear}
+          onTermChange={setSelectedTerm}
+          onAcademicYearChange={setSelectedYear}
+        />
 
         {/* Page header */}
         <div>
