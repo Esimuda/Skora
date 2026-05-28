@@ -49,6 +49,18 @@ export const ModernResultSheet: React.FC<Props> = ({
     );
   };
 
+  // Shared style so every total/score cell sits perfectly centered, both axes.
+  const cellStyle: React.CSSProperties = {
+    padding: '4px 8px',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+  };
+  const cellStyleLeft: React.CSSProperties = {
+    padding: '4px 8px',
+    textAlign: 'left',
+    verticalAlign: 'middle',
+  };
+
   return (
     <div style={{
       fontFamily: "'Inter', sans-serif",
@@ -59,9 +71,52 @@ export const ModernResultSheet: React.FC<Props> = ({
       fontSize: '10px',
       boxSizing: 'border-box',
       overflow: 'hidden',
+      position: 'relative',
     }}>
 
+      {/* ── WATERMARK ── */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}>
+        {school.logo ? (
+          <img
+            src={school.logo}
+            alt=""
+            style={{
+              width: '520px',
+              height: '520px',
+              objectFit: 'contain',
+              opacity: 0.07,
+              filter: 'grayscale(100%)',
+              userSelect: 'none',
+            }}
+          />
+        ) : (
+          <div style={{
+            fontSize: '340px',
+            fontWeight: 900,
+            color: '#00113a',
+            opacity: 0.05,
+            fontFamily: "'Noto Serif', serif",
+            userSelect: 'none',
+            lineHeight: 1,
+          }}>
+            {(school.name ?? 'S')[0].toUpperCase()}
+          </div>
+        )}
+      </div>
+
+      {/* All content sits above watermark */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+
       {/* ── HEADER HERO ── */}
+  
       <div style={{
         background: 'linear-gradient(135deg, #00113a 0%, #002366 100%)',
         padding: '18px 16mm',
@@ -158,7 +213,7 @@ export const ModernResultSheet: React.FC<Props> = ({
           <thead>
             <tr style={{ backgroundColor: '#00113a' }}>
               {['Subject', 'CA1 (20)', 'CA2 (20)', 'Exam (60)', 'Total', 'Grade', 'Remark'].map((h) => (
-                <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Subject' ? 'left' : 'center', fontSize: '7.5px', fontWeight: 700, textTransform: 'uppercase', color: '#b3c5ff', letterSpacing: '0.3px' }}>
+                <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Subject' ? 'left' : 'center', verticalAlign: 'middle', fontSize: '7.5px', fontWeight: 700, textTransform: 'uppercase', color: '#b3c5ff', letterSpacing: '0.3px' }}>
                   {h}
                 </th>
               ))}
@@ -167,12 +222,12 @@ export const ModernResultSheet: React.FC<Props> = ({
           <tbody>
             {scores.map((score, idx) => (
               <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f3f4f5', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>
-                <td style={{ padding: '4px 8px', fontWeight: 600, color: '#00113a' }}>{score.subjectId}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'center' }}>{score.ca1}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'center' }}>{score.ca2}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'center' }}>{score.exam}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 700, color: '#00113a' }}>{score.total}</td>
-                <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectId}</td>
+                <td style={cellStyle}>{score.ca1}</td>
+                <td style={cellStyle}>{score.ca2}</td>
+                <td style={cellStyle}>{score.exam}</td>
+                <td style={{ ...cellStyle, fontWeight: 700, color: '#00113a' }}>{score.total}</td>
+                <td style={cellStyle}>
                   <span style={{
                     backgroundColor: score.total >= 75 ? '#fed65b' : score.total >= 50 ? '#dbe1ff' : '#f3f4f5',
                     color: '#00113a', padding: '1px 6px', borderRadius: '3px', fontSize: '8px', fontWeight: 700,
@@ -180,13 +235,13 @@ export const ModernResultSheet: React.FC<Props> = ({
                     {score.grade}
                   </span>
                 </td>
-                <td style={{ padding: '4px 8px', textAlign: 'center', color: '#444650', fontStyle: 'italic' }}>{score.remark}</td>
+                <td style={{ ...cellStyle, color: '#444650', fontStyle: 'italic' }}>{score.remark}</td>
               </tr>
             ))}
             <tr style={{ backgroundColor: '#dbe1ff' }}>
-              <td colSpan={4} style={{ padding: '4px 8px', fontWeight: 700, color: '#00113a', textAlign: 'right', fontSize: '8px', textTransform: 'uppercase' }}>Overall</td>
-              <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 900, color: '#00113a' }}>{totalScore}</td>
-              <td colSpan={2} style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 700, color: '#002366' }}>{percentage.toFixed(1)}%</td>
+              <td colSpan={4} style={{ ...cellStyle, textAlign: 'right', fontWeight: 700, color: '#00113a', fontSize: '8px', textTransform: 'uppercase' }}>Overall</td>
+              <td style={{ ...cellStyle, fontWeight: 900, color: '#00113a' }}>{totalScore}</td>
+              <td colSpan={2} style={{ ...cellStyle, fontWeight: 700, color: '#002366' }}>{percentage.toFixed(1)}%</td>
             </tr>
           </tbody>
         </table>
@@ -269,6 +324,7 @@ export const ModernResultSheet: React.FC<Props> = ({
         </div>
       </div>
 
+      </div>{/* end zIndex wrapper */}
     </div>
   );
 };

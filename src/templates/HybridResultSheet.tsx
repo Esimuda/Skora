@@ -50,6 +50,20 @@ export const HybridResultSheet: React.FC<Props> = ({
     );
   };
 
+  // Shared style so every total/score cell sits perfectly centered, both axes.
+  const cellStyle: React.CSSProperties = {
+    padding: '4px 6px',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    borderBottom: '0.5px solid rgba(197,198,210,0.3)',
+  };
+  const cellStyleLeft: React.CSSProperties = {
+    padding: '4px 8px',
+    textAlign: 'left',
+    verticalAlign: 'middle',
+    borderBottom: '0.5px solid rgba(197,198,210,0.3)',
+  };
+
   return (
     <div style={{
       fontFamily: "'Inter', sans-serif",
@@ -59,7 +73,50 @@ export const HybridResultSheet: React.FC<Props> = ({
       color: '#191c1d',
       fontSize: '10px',
       boxSizing: 'border-box',
+      position: 'relative',
+      overflow: 'hidden',
     }}>
+
+      {/* ── WATERMARK ── */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}>
+        {school.logo ? (
+          <img
+            src={school.logo}
+            alt=""
+            style={{
+              width: '520px',
+              height: '520px',
+              objectFit: 'contain',
+              opacity: 0.07,
+              filter: 'grayscale(100%)',
+              userSelect: 'none',
+            }}
+          />
+        ) : (
+          <div style={{
+            fontSize: '340px',
+            fontWeight: 900,
+            color: '#00113a',
+            opacity: 0.05,
+            fontFamily: "'Noto Serif', serif",
+            userSelect: 'none',
+            lineHeight: 1,
+          }}>
+            {(school.name ?? 'S')[0].toUpperCase()}
+          </div>
+        )}
+      </div>
+
+      {/* All content sits above watermark */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
 
       {/* ── HEADER ── */}
       <div style={{ padding: '14px 16mm 10px', backgroundColor: '#ffffff', borderBottom: '1px solid rgba(197,198,210,0.4)' }}>
@@ -169,21 +226,21 @@ export const HybridResultSheet: React.FC<Props> = ({
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
           <thead>
             <tr>
-              <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: '7.5px', fontWeight: 700, textTransform: 'uppercase', color: '#444650', letterSpacing: '0.5px', backgroundColor: '#f3f4f5', borderRadius: '2px 0 0 2px' }}>Subject</th>
+              <th style={{ padding: '5px 8px', textAlign: 'left', verticalAlign: 'middle', fontSize: '7.5px', fontWeight: 700, textTransform: 'uppercase', color: '#444650', letterSpacing: '0.5px', backgroundColor: '#f3f4f5', borderRadius: '2px 0 0 2px' }}>Subject</th>
               {['CA1', 'CA2', 'Exam', 'Total', 'Grade', 'Remark'].map((h, i) => (
-                <th key={h} style={{ padding: '5px 6px', textAlign: 'center', fontSize: '7.5px', fontWeight: 700, textTransform: 'uppercase', color: '#444650', letterSpacing: '0.3px', backgroundColor: '#f3f4f5', borderRadius: i === 5 ? '0 2px 2px 0' : 0 }}>{h}</th>
+                <th key={h} style={{ padding: '5px 6px', textAlign: 'center', verticalAlign: 'middle', fontSize: '7.5px', fontWeight: 700, textTransform: 'uppercase', color: '#444650', letterSpacing: '0.3px', backgroundColor: '#f3f4f5', borderRadius: i === 5 ? '0 2px 2px 0' : 0 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {scores.map((score, idx) => (
               <tr key={idx}>
-                <td style={{ padding: '4px 8px', fontWeight: 600, color: '#00113a', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>{score.subjectId}</td>
-                <td style={{ padding: '4px 6px', textAlign: 'center', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>{score.ca1}</td>
-                <td style={{ padding: '4px 6px', textAlign: 'center', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>{score.ca2}</td>
-                <td style={{ padding: '4px 6px', textAlign: 'center', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>{score.exam}</td>
-                <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 700, color: '#00113a', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>{score.total}</td>
-                <td style={{ padding: '4px 6px', textAlign: 'center', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>
+                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectId}</td>
+                <td style={cellStyle}>{score.ca1}</td>
+                <td style={cellStyle}>{score.ca2}</td>
+                <td style={cellStyle}>{score.exam}</td>
+                <td style={{ ...cellStyle, fontWeight: 700, color: '#00113a' }}>{score.total}</td>
+                <td style={cellStyle}>
                   <span style={{
                     backgroundColor: score.total >= 75 ? 'rgba(115,92,0,0.12)' : score.total >= 50 ? 'rgba(0,35,102,0.08)' : '#f3f4f5',
                     color: score.total >= 75 ? '#735c00' : score.total >= 50 ? '#002366' : '#444650',
@@ -192,13 +249,13 @@ export const HybridResultSheet: React.FC<Props> = ({
                     {score.grade}
                   </span>
                 </td>
-                <td style={{ padding: '4px 6px', textAlign: 'center', color: '#757682', fontStyle: 'italic', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>{score.remark}</td>
+                <td style={{ ...cellStyle, color: '#757682', fontStyle: 'italic' }}>{score.remark}</td>
               </tr>
             ))}
             <tr style={{ backgroundColor: '#f3f4f5' }}>
-              <td colSpan={4} style={{ padding: '4px 8px', fontWeight: 700, color: '#444650', textAlign: 'right', fontSize: '8px', textTransform: 'uppercase' }}>Summary</td>
-              <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 900, color: '#00113a' }}>{totalScore}</td>
-              <td colSpan={2} style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 700, color: '#735c00' }}>{percentage.toFixed(1)}%</td>
+              <td colSpan={4} style={{ ...cellStyle, borderBottom: 'none', textAlign: 'right', fontWeight: 700, color: '#444650', fontSize: '8px', textTransform: 'uppercase' }}>Summary</td>
+              <td style={{ ...cellStyle, borderBottom: 'none', fontWeight: 900, color: '#00113a' }}>{totalScore}</td>
+              <td colSpan={2} style={{ ...cellStyle, borderBottom: 'none', fontWeight: 700, color: '#735c00' }}>{percentage.toFixed(1)}%</td>
             </tr>
           </tbody>
         </table>
@@ -284,6 +341,7 @@ export const HybridResultSheet: React.FC<Props> = ({
         </div>
       </div>
 
+      </div>{/* end zIndex wrapper */}
     </div>
   );
 };
