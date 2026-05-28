@@ -15,7 +15,7 @@ export class Message {
   senderName: string;
 
   @Column()
-  senderRole: 'admin' | 'school_admin' | 'teacher';
+  senderRole: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
   @Column()
   recipientId: string;
@@ -24,7 +24,7 @@ export class Message {
   recipientName: string;
 
   @Column()
-  recipientRole: 'admin' | 'school_admin' | 'teacher';
+  recipientRole: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
   @Column({ type: 'text' })
   content: string;
