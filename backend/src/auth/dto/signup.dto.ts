@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class SignupDto {
   @IsEmail()
@@ -6,6 +6,9 @@ export class SignupDto {
 
   @IsString()
   @MinLength(8)
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+    message: 'Password must contain at least one letter and one number',
+  })
   password: string;
 
   @IsString()

@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity('users')
 export class User {
@@ -18,10 +24,17 @@ export class User {
   lastName: string;
 
   @Column({ default: 'teacher' })
-  role: 'admin' | 'school_admin' | 'teacher';
+  role: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
   @Column({ nullable: true })
   schoolId: string;
+
+  // Password reset — token is a random hex string, stored hashed
+  @Column({ nullable: true, select: false })
+  passwordResetToken: string;
+
+  @Column({ nullable: true })
+  passwordResetExpiry: Date;
 
   @CreateDateColumn()
   createdAt: Date;

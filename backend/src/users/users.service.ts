@@ -20,7 +20,11 @@ export class UsersService {
   }
 
   findByEmailWithPassword(email: string) {
-    return this.repo.createQueryBuilder('u').addSelect('u.password').where('u.email = :email', { email }).getOne();
+    return this.repo
+      .createQueryBuilder('u')
+      .addSelect('u.password')
+      .where('u.email = :email', { email })
+      .getOne();
   }
 
   findBySchool(schoolId: string) {
@@ -34,5 +38,31 @@ export class UsersService {
 
   async updateSchool(userId: string, schoolId: string) {
     await this.repo.update(userId, { schoolId });
+  }
+
+  // Used by forgot-password flow — stores hashed token + expiry
+  async setResetToken(userId: string, hashedToken: string, expiry: Date) {
+    await this.repo.update(userId, {
+      passwordResetToken: hashedToken,
+      passwordResetExpiry: expiry,
+    });
+  }
+
+  // Finds user and exposes the reset token for comparison
+  findByEmailWithResetToken(email: string) {
+    return this.repo
+      .createQueryBuilder('u')
+      .addSelect('u.passwordResetToken')
+      .addSelect('u.password')
+      .where('u.email = :email', { email })
+      .getOne();
+  }
+
+  // Clears the reset token after use
+  async clearResetToken(userId: string) {
+    await this.repo.update(userId, {
+      passwordResetToken: null as any,
+      passwordResetExpiry: null as any,
+    });
   }
 }

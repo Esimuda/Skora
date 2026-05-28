@@ -206,4 +206,35 @@ export class MailService {
       context: 'class-assignment',
     });
   }
+  async sendPasswordReset(opts: {
+    to: string;
+    firstName: string;
+    resetUrl: string;
+  }) {
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:8px">
+        <div style="background:#001944;padding:24px;border-radius:6px;text-align:center;margin-bottom:24px">
+          <h1 style="color:#fff;margin:0;font-size:24px">Skora RMS</h1>
+          <p style="color:#b3c5ff;margin:4px 0 0">Academic Ledger</p>
+        </div>
+        <h2 style="color:#001944">Reset Your Password</h2>
+        <p>Hello <strong>${opts.firstName}</strong>,</p>
+        <p>We received a request to reset your Skora RMS password. Click the button below to choose a new password.</p>
+        <a href="${opts.resetUrl}"
+           style="display:inline-block;background:#001944;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold;margin:16px 0">
+          Reset My Password
+        </a>
+        <p style="color:#757682;font-size:13px">This link expires in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.</p>
+        <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0">
+        <p style="color:#757682;font-size:12px">Skora RMS — Nigerian School Result Management System</p>
+      </div>
+    `;
+
+    await this.send({
+      to: opts.to,
+      subject: 'Reset your Skora RMS password',
+      html,
+      context: 'password-reset',
+    });
+  }
 }

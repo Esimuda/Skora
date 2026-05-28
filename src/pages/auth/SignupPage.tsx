@@ -116,6 +116,8 @@ export const SignupPage = () => {
       e.password = 'Password is required';
     } else if (adminData.password.length < 8) {
       e.password = 'Password must be at least 8 characters';
+    } else if (!/^(?=.*[A-Za-z])(?=.*\d).+$/.test(adminData.password)) {
+      e.password = 'Password must contain at least one letter and one number';
     }
     if (adminData.password !== adminData.confirmPassword) {
       e.confirmPassword = 'Passwords do not match';
@@ -548,7 +550,7 @@ export const SignupPage = () => {
                   type="password"
                   value={adminData.password}
                   onChange={(e) => setAdminField('password', e.target.value)}
-                  placeholder="Minimum 8 characters"
+                  placeholder="8+ chars, with letter and number"
                   className={inputCls + (errors.password ? ' ring-2 ring-error' : '')}
                 />
                 {errors.password && <p className={errCls}>{errors.password}</p>}

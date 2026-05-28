@@ -120,9 +120,14 @@ export const LoginPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-xs text-primary font-semibold hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 name="password"
                 type="password"
