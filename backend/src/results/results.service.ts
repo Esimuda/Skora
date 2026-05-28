@@ -102,7 +102,7 @@ export class ResultsService {
       );
     }
 
-    await this.notifications.create({
+ await this.notifications.create({
       fromUserId: teacherUser.id,
       fromUserName: teacherName,
       toUserRole: 'school_admin',
@@ -114,6 +114,7 @@ export class ResultsService {
       className: cls.name,
       term: dto.term,
       academicYear: dto.academicYear,
+      actionUrl: '/principal/approvals',
     });
 
     // Email the principal(s) in this school
@@ -149,10 +150,24 @@ export class ResultsService {
     return r;
   }
 
-  async approve(schoolId: string, id: string, dto: ApproveResultDto, principalUser: any) {
+ async approve(schoolId: string, id: string, dto: ApproveResultDto, principalUser: any) {
     const result = await this.repo.findOne({ where: { id, schoolId } });
     if (!result) throw new NotFoundException('Result not found');
     if (result.status !== 'submitted') throw new BadRequestException('Only submitted results can be approved');
+
+    // Enforce: every student must have a principal comment before approval
+    const students = await this.students.findByClass(schoolId, result.classId);
+    const comments = await this.comments.findByClass(schoolId, result.classId, result.term, result.academicYear);
+    const missing = students.filter((s) => {
+      const c = comments.find((c) => c.studentId === s.id);
+      return !c?.principalComment?.trim();
+    });
+    if (missing.length > 0) {
+      const names = missing.map((s) => `${s.lastName} ${s.firstName}`).join(', ');
+      throw new BadRequestException(
+        `Principal comment required for all students before approval. Missing for: ${names}`,
+      );
+    }
 
     await this.repo.update(id, {
       status: 'approved',
@@ -173,6 +188,7 @@ export class ResultsService {
       className: result.className,
       term: result.term,
       academicYear: result.academicYear,
+      actionUrl: '/teacher/submit',
     });
 
     const teacher = await this.users.findById(result.teacherId);
@@ -215,6 +231,7 @@ export class ResultsService {
       className: result.className,
       term: result.term,
       academicYear: result.academicYear,
+      actionUrl: '/teacher/submit',
     });
 
     const teacher = await this.users.findById(result.teacherId);

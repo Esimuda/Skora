@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -21,7 +22,14 @@ export class ClassesController {
   }
 
   @Get()
-  findAll(@Param('schoolId') schoolId: string) {
+  findAll(
+    @Param('schoolId') schoolId: string,
+    @CurrentUser() user: any,
+  ) {
+    // Teachers only see classes assigned to them
+    if (user?.role === 'teacher') {
+      return this.service.findAllForTeacher(schoolId, user.id);
+    }
     return this.service.findAll(schoolId);
   }
 

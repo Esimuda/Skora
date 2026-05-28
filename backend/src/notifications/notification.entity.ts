@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 @Entity('notifications')
-@Index(['schoolId', 'toUserRole', 'isRead'])  // unread count per role
+@Index(['schoolId', 'toUserRole', 'isRead'])
 @Index(['schoolId', 'isRead'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
@@ -39,6 +39,10 @@ export class Notification {
 
   @Column({ nullable: true })
   academicYear: string;
+
+  // Frontend route the user should be taken to when they click this notification
+  @Column({ nullable: true })
+  actionUrl: string;
 
   @Column({ default: false })
   isRead: boolean;

@@ -173,4 +173,37 @@ export class MailService {
       context: `result-${opts.decision}`,
     });
   }
+  async sendClassAssignmentNotification(opts: {
+    to: string;
+    teacherName: string;
+    className: string;
+    academicYear: string;
+    appUrl: string;
+  }) {
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:8px">
+        <div style="background:#001944;padding:24px;border-radius:6px;text-align:center;margin-bottom:24px">
+          <h1 style="color:#fff;margin:0;font-size:24px">Skora RMS</h1>
+          <p style="color:#b3c5ff;margin:4px 0 0">Academic Ledger</p>
+        </div>
+        <h2 style="color:#001944">Class Assignment</h2>
+        <p>Hello <strong>${opts.teacherName}</strong>,</p>
+        <p>You have been assigned as the class teacher for <strong>${opts.className}</strong> for the <strong>${opts.academicYear}</strong> academic year.</p>
+        <p>You can now log in to Skora RMS to view your class, enter scores, record attendance, and manage student results.</p>
+        <a href="${opts.appUrl}" style="display:inline-block;background:#001944;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;margin:16px 0">
+          Open Skora RMS
+        </a>
+        <p style="color:#757682;font-size:13px">If you have any questions, please contact your principal.</p>
+        <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0">
+        <p style="color:#757682;font-size:12px">Skora RMS — Nigerian School Result Management System</p>
+      </div>
+    `;
+
+    await this.send({
+      to: opts.to,
+      subject: `You've been assigned to ${opts.className} on Skora RMS`,
+      html,
+      context: 'class-assignment',
+    });
+  }
 }
