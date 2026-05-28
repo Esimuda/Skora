@@ -38,10 +38,18 @@ export class ClassesController {
     return this.service.findOne(schoolId, id);
   }
 
-  @Put(':id')
+  // NestJS can't stack two HTTP method decorators on a single handler — the
+  // second one silently overwrites the first. Register PUT and PATCH as
+  // separate handlers that both delegate to the same service method.
   @Patch(':id')
   @Roles('school_admin', 'admin')
   update(@Param('schoolId') schoolId: string, @Param('id') id: string, @Body() dto: UpdateClassDto) {
+    return this.service.update(schoolId, id, dto);
+  }
+
+  @Put(':id')
+  @Roles('school_admin', 'admin')
+  replace(@Param('schoolId') schoolId: string, @Param('id') id: string, @Body() dto: UpdateClassDto) {
     return this.service.update(schoolId, id, dto);
   }
 
