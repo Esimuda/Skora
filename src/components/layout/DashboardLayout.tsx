@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
@@ -9,25 +9,90 @@ interface DashboardLayoutProps {
   title?: string;
 }
 
+interface AppNotification {
+  id: string;
+  type: 'result_submitted' | 'result_approved' | 'result_rejected' | 'general';
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  classId?: string;
+  term?: string;
+  academicYear?: string;
+  actionUrl?: string;
+}
+
+interface ToastNotif {
+  id: string;
+  title: string;
+  message: string;
+  type: AppNotification['type'];
+}
+
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
 );
+
+const formatTimeAgo = (iso: string) => {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return 'Just now';
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`;
+  return `${Math.round(diff / 86_400_000)}d ago`;
+};
+
+const LAST_SEEN_KEY = 'skora-notif-last-seen';
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifCount, setNotifCount] = useState(0);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastNotif[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncState, setSyncState] = useState<syncManager.SyncState>('idle');
   const [pendingCount, setPendingCount] = useState(syncManager.getCurrentCount());
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const notifCount = notifications.filter((n) => !n.isRead).length;
+
+  const loadNotifications = async () => {
+    try {
+      const ns = await api.get<AppNotification[]>('/notifications');
+      setNotifications(ns);
+      return ns;
+    } catch {
+      return [];
+    }
+  };
 
   useEffect(() => {
-    // Load notification badge count
-    api.get<{ id: string; isRead: boolean }[]>('/notifications')
-      .then((ns) => setNotifCount(ns.filter((n) => !n.isRead).length))
-      .catch(() => {});
+    // Initial load + auto-popup check
+    loadNotifications().then((ns) => {
+      const lastSeen = localStorage.getItem(LAST_SEEN_KEY);
+      const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
+
+      // Find unread notifications newer than the last time we showed a popup
+      const newUnread = ns.filter(
+        (n) => !n.isRead && new Date(n.createdAt).getTime() > lastSeenTime,
+      );
+
+      if (newUnread.length > 0) {
+        // Show up to 3 toasts, newest first
+        const toShow = newUnread.slice(0, 3);
+        setToasts(toShow.map((n) => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          type: n.type,
+        })));
+        // Update last-seen timestamp to now so we don't show these again
+        localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
+      }
+    });
 
     // Online/offline detection
     const handleOnline = () => setIsOnline(true);
@@ -41,21 +106,73 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       setPendingCount(count);
     });
 
-    // Refresh notif badge after a sync completes
-    const handleSyncDone = () => {
-      api.get<{ id: string; isRead: boolean }[]>('/notifications')
-        .then((ns) => setNotifCount(ns.filter((n) => !n.isRead).length))
-        .catch(() => {});
-    };
+    // Refresh notifications after a sync completes
+    const handleSyncDone = () => loadNotifications();
     window.addEventListener('skora:sync-complete', handleSyncDone);
+
+    // Refresh notifications when a new one is triggered by any page action
+    const handleNewNotif = () => loadNotifications();
+    window.addEventListener('skora:notification-sent', handleNewNotif);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('skora:sync-complete', handleSyncDone);
+      window.removeEventListener('skora:notification-sent', handleNewNotif);
       unsubSync();
     };
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        bellRef.current &&
+        !bellRef.current.contains(e.target as Node)
+      ) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Auto-dismiss toasts after 5 seconds each
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timer = setTimeout(() => {
+      setToasts((prev) => prev.slice(1));
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [toasts]);
+
+  const handleBellClick = () => {
+    setNotifOpen((prev) => !prev);
+  };
+
+  const handleNotifClick = async (notif: AppNotification) => {
+    // Mark as read
+    try {
+      await api.put(`/notifications/${notif.id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n)),
+      );
+    } catch {}
+
+    // Close the dropdown
+    setNotifOpen(false);
+
+    // Navigate to the action page if one is set
+    if (notif.actionUrl) {
+      navigate(notif.actionUrl);
+    }
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -105,6 +222,19 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       to !== '/principal/dashboard' &&
       location.pathname.startsWith(to));
 
+  const getNotifIcon = (type: AppNotification['type']) => {
+    if (type === 'result_submitted') return 'send';
+    if (type === 'result_approved') return 'verified';
+    if (type === 'result_rejected') return 'undo';
+    return 'notifications';
+  };
+
+  const getNotifColor = (type: AppNotification['type']) => {
+    if (type === 'result_approved') return 'text-secondary';
+    if (type === 'result_rejected') return 'text-error';
+    return 'text-primary';
+  };
+
   // Sync status bar content
   const SyncBar = () => {
     if (isOnline && syncState === 'idle' && pendingCount === 0) return null;
@@ -129,10 +259,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed-variant">
         <Icon name="sync" className="text-sm" />
         {pendingCount} change{pendingCount !== 1 ? 's' : ''} queued — tap to sync
-        <button
-          onClick={() => syncManager.syncNow()}
-          className="underline font-bold ml-1"
-        >
+        <button onClick={() => syncManager.syncNow()} className="underline font-bold ml-1">
           Sync now
         </button>
       </div>
@@ -227,6 +354,30 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
       )}
 
+      {/* Toast pop-up alerts — top-right corner */}
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto bg-surface-container-low shadow-ambient rounded-xl p-4 flex items-start gap-3 border border-outline-variant/20 animate-fade-in"
+          >
+            <span className={`material-symbols-outlined text-lg flex-shrink-0 mt-0.5 ${getNotifColor(toast.type)}`}>
+              {getNotifIcon(toast.type)}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-on-surface text-sm">{toast.title}</p>
+              <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-2">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => dismissToast(toast.id)}
+              className="flex-shrink-0 text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <Icon name="close" className="text-base" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
 
@@ -264,13 +415,97 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
             </div>
 
-            {/* Notification bell */}
-            <button className="relative h-11 w-11 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
-              <Icon name="notifications" />
-              {notifCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface" />
+            {/* Notification bell + dropdown */}
+            <div className="relative">
+              <button
+                ref={bellRef}
+                onClick={handleBellClick}
+                className="relative h-11 w-11 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors"
+              >
+                <Icon name="notifications" />
+                {notifCount > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface" />
+                )}
+              </button>
+
+              {/* Dropdown panel */}
+              {notifOpen && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute right-0 top-12 w-80 bg-surface-container-low rounded-2xl shadow-ambient border border-outline-variant/15 overflow-hidden z-50"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/10">
+                    <span className="font-headline font-bold text-sm text-on-surface">Notifications</span>
+                    {notifCount > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-error text-on-error rounded-full">
+                        {notifCount} unread
+                      </span>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div className="max-h-80 overflow-y-auto divide-y divide-outline-variant/10">
+                    {notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-on-surface-variant">
+                        <Icon name="notifications_none" className="text-3xl text-outline/30 mb-2" />
+                        <p className="text-sm font-bold">No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.slice(0, 8).map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => handleNotifClick(n)}
+                          className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-surface-container transition-colors ${
+                            !n.isRead ? 'bg-primary/3' : ''
+                          }`}
+                        >
+                          <span className={`material-symbols-outlined text-base flex-shrink-0 mt-0.5 ${getNotifColor(n.type)}`}>
+                            {getNotifIcon(n.type)}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`text-sm leading-snug ${!n.isRead ? 'font-bold text-on-surface' : 'font-medium text-on-surface-variant'}`}>
+                                {n.title}
+                              </p>
+                              {!n.isRead && (
+                                <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
+                              )}
+                            </div>
+                            <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-2">{n.message}</p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-[10px] text-on-surface-variant/60">{formatTimeAgo(n.createdAt)}</p>
+                              {n.actionUrl && (
+                                <span className="text-[10px] font-bold text-primary flex items-center gap-0.5">
+                                  View <Icon name="arrow_forward" className="text-xs" />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  {notifications.length > 0 && (
+                    <div className="px-4 py-2.5 border-t border-outline-variant/10 bg-surface-container-low">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.put('/notifications/mark-all-read');
+                            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+                          } catch {}
+                        }}
+                        className="text-xs font-bold text-primary hover:underline"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
-            </button>
+            </div>
 
             <div className="h-8 w-px bg-outline-variant/30 hidden sm:block" />
 

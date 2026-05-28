@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { Class, Student } from '@/types';
+import { useTeacherClasses } from '@/lib/useTeacherClasses';
+import { Student } from '@/types';
 
 const emptyForm = {
   admissionNumber: '',
@@ -20,13 +20,10 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
 );
 
 const StudentsPage = () => {
-  const user = useAuthStore((s) => s.user);
-  const schoolId = user?.schoolId ?? '';
+  const { classes, loading: loadingClasses, noClasses, schoolId } = useTeacherClasses();
 
-  const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
-  const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,14 +34,6 @@ const StudentsPage = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (!schoolId) { setLoadingClasses(false); return; }
-    api.get<Class[]>(`/schools/${schoolId}/classes`)
-      .then(setClasses)
-      .catch(() => {})
-      .finally(() => setLoadingClasses(false));
-  }, [schoolId]);
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) { setStudents([]); return; }
@@ -61,14 +50,19 @@ const StudentsPage = () => {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.admissionNumber.trim()) e.admissionNumber = 'Admission number is required';
     if (!form.firstName.trim()) e.firstName = 'First name is required';
     if (!form.lastName.trim()) e.lastName = 'Last name is required';
     if (!selectedClassId) e.class = 'Please select a class first';
-    const duplicate = students.find(
-      (s) => s.admissionNumber.toLowerCase() === form.admissionNumber.trim().toLowerCase() && s.id !== editingId
-    );
-    if (duplicate) e.admissionNumber = 'This admission number already exists in this class';
+    // Admission number is optional — backend auto-generates if blank.
+    // Only check for duplicates when a number was explicitly typed.
+    if (form.admissionNumber.trim()) {
+      const duplicate = students.find(
+        (s) =>
+          s.admissionNumber.toLowerCase() === form.admissionNumber.trim().toLowerCase() &&
+          s.id !== editingId,
+      );
+      if (duplicate) e.admissionNumber = 'This admission number already exists in this class';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -78,7 +72,7 @@ const StudentsPage = () => {
     setSaving(true);
     setApiError(null);
     const payload = {
-      admissionNumber: form.admissionNumber.trim(),
+      admissionNumber: form.admissionNumber.trim() || undefined,
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       middleName: form.middleName.trim() || undefined,
@@ -151,6 +145,16 @@ const StudentsPage = () => {
 
   return (
     <DashboardLayout>
+      {noClasses && (
+        <div className="rounded-xl bg-error-container text-on-error-container px-5 py-4 flex items-start gap-3">
+          <span className="material-symbols-outlined mt-0.5">warning</span>
+          <div>
+            <p className="font-bold text-sm">No Classes Assigned</p>
+            <p className="text-sm mt-0.5">You have not been assigned to any class yet. Please contact your principal to get assigned before you can access class data.</p>
+          </div>
+        </div>
+      )}
+      {!noClasses && (
       <div className="space-y-6 animate-fade-in">
 
         {/* Header */}
@@ -205,11 +209,13 @@ const StudentsPage = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Admission Number *</label>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                  Admission Number <span className="normal-case font-normal">(optional — auto-generated if left blank)</span>
+                </label>
                 <input
                   value={form.admissionNumber}
                   onChange={(e) => { setForm({ ...form, admissionNumber: e.target.value }); setErrors({ ...errors, admissionNumber: '' }); }}
-                  placeholder="e.g. JSS1A/001"
+                  placeholder="Leave blank to auto-generate"
                   className={`input-inset ${errors.admissionNumber ? 'ring-2 ring-error' : ''}`}
                 />
                 {errors.admissionNumber && <p className="mt-1.5 text-xs text-error">{errors.admissionNumber}</p>}
@@ -380,6 +386,7 @@ const StudentsPage = () => {
         )}
 
       </div>
+      )}
     </DashboardLayout>
   );
 };

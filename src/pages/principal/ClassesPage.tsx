@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuthStore } from "@/store/authStore";
 import { api } from "@/lib/api";
 import { Class, Teacher } from "@/types";
-
+import { getCurrentAcademicYear, getAcademicYearOptions } from '@/components/ui/TermSelector';
 const Icon = ({
   name,
   className = "",
@@ -12,12 +12,12 @@ const Icon = ({
   className?: string;
 }) => <span className={`material-symbols-outlined ${className}`}>{name}</span>;
 
-const emptyForm = {
+const getEmptyForm = () => ({
   name: "",
-  academicYear: "2024/2025",
+  academicYear: getCurrentAcademicYear(),
   teacherId: "",
   teacherName: "",
-};
+});
 
 const SUGGESTIONS = [
   "Nursery 1","Nursery 2","Primary 1","Primary 2","Primary 3","Primary 4","Primary 5","Primary 6",
@@ -35,7 +35,7 @@ export const ClassesPage = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState(() => getEmptyForm());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -74,10 +74,14 @@ export const ClassesPage = () => {
     return Object.keys(e).length === 0;
   };
 
-  const handleTeacherChange = (teacherId: string) => {
-    const teacher = teachers.find((t) => t.id === teacherId);
+  const handleTeacherChange = (selectedId: string) => {
+    const teacher = teachers.find((t) => t.id === selectedId);
+    // teacherId stored on the class must be the teacher's userId (from the users
+    // table), not the teacher record id — this is what the JWT strategy exposes
+    // as user.id and what the class filter compares against.
+    const userId = teacher?.userId ?? "";
     const name = teacher ? `${teacher.firstName} ${teacher.lastName}` : "";
-    setForm({ ...form, teacherId, teacherName: name });
+    setForm({ ...form, teacherId: userId, teacherName: name });
   };
 
   const handleSave = async () => {
@@ -86,12 +90,17 @@ export const ClassesPage = () => {
     setApiError(null);
     try {
       if (editingId) {
-        const updated = await api.patch<Class>(`/schools/${schoolId}/classes/${editingId}`, {
+        // Build the body explicitly — never send undefined values since the
+        // backend ValidationPipe with forbidNonWhitelisted rejects unknown keys,
+        // and JSON.stringify(undefined) drops the key silently but some
+        // serializers don't. Sending null clears the assignment intentionally.
+        const patchBody: Record<string, unknown> = {
           name: form.name.trim(),
           academicYear: form.academicYear.trim(),
-          teacherId: form.teacherId || undefined,
-          teacherName: form.teacherName || undefined,
-        });
+          teacherId: form.teacherId || null,
+          teacherName: form.teacherName || null,
+        };
+        const updated = await api.patch<Class>(`/schools/${schoolId}/classes/${editingId}`, patchBody);
         setClasses((prev) => prev.map((c) => c.id === editingId ? updated : c));
       } else {
         const created = await api.post<Class>(`/schools/${schoolId}/classes`, {
@@ -104,7 +113,7 @@ export const ClassesPage = () => {
       }
       setShowForm(false);
       setEditingId(null);
-      setForm({ ...emptyForm });
+      setForm(getEmptyForm());
       setErrors({});
     } catch (e: any) {
       setApiError(e.message ?? "Failed to save class");
@@ -114,10 +123,13 @@ export const ClassesPage = () => {
   };
 
   const handleEdit = (cls: Class) => {
+    // The class stores teacherId as the teacher's userId. Find the matching
+    // teacher record so the dropdown can pre-select the right option.
+    const matchedTeacher = teachers.find((t) => t.userId === cls.teacherId);
     setForm({
       name: cls.name,
       academicYear: cls.academicYear,
-      teacherId: cls.teacherId ?? "",
+      teacherId: matchedTeacher?.id ?? cls.teacherId ?? "",
       teacherName: cls.teacherName ?? "",
     });
     setEditingId(cls.id);
@@ -129,7 +141,7 @@ export const ClassesPage = () => {
   const handleCancel = () => {
     setShowForm(false);
     setEditingId(null);
-    setForm({ ...emptyForm });
+    setForm(getEmptyForm());
     setErrors({});
     setApiError(null);
   };
@@ -160,7 +172,7 @@ export const ClassesPage = () => {
           </div>
           {!showForm && (
             <button
-              onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...emptyForm }); }}
+              onClick={() => { setShowForm(true); setEditingId(null); setForm(getEmptyForm()); }}
               className="btn-primary flex items-center gap-2 text-sm"
             >
               <Icon name="add" /> Create Class
@@ -195,14 +207,17 @@ export const ClassesPage = () => {
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
                   Academic Year *
                 </label>
-                <input
+                <select
                   value={form.academicYear}
                   onChange={(e) => { setForm({ ...form, academicYear: e.target.value }); setErrors({ ...errors, academicYear: "" }); }}
-                  placeholder="e.g. 2024/2025"
                   className={`input-inset ${errors.academicYear ? "ring-2 ring-error" : ""}`}
-                />
+                >
+                  {getAcademicYearOptions(5).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
                 {errors.academicYear && <p className="mt-1.5 text-xs text-error">{errors.academicYear}</p>}
-              </div>
+                </div>
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
                   Assign Teacher <span className="normal-case font-normal">(optional)</span>

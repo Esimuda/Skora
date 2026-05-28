@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { Class, Term } from '@/types';
-
+import { useTeacherClasses } from '@/lib/useTeacherClasses';
+import { Term } from '@/types';
+import { getCurrentTerm, getCurrentAcademicYear } from '@/components/ui/TermSelector';
 const formatPosition = (pos: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = pos % 100;
@@ -34,28 +34,17 @@ interface ClassResultStatus {
 }
 
 export const SubmitResultsPage = () => {
-  const user = useAuthStore((s) => s.user);
-  const schoolId = user?.schoolId ?? '';
+  const { classes, loading: loadingClasses, noClasses, schoolId } = useTeacherClasses();
 
-  const [classes, setClasses] = useState<Class[]>([]);
   const [classResults, setClassResults] = useState<ComputedResult[]>([]);
   const [resultStatus, setResultStatus] = useState<ClassResultStatus | null>(null);
   const [selectedClassId, setSelectedClassId] = useState('');
-  const [term, setTerm] = useState<Term>('first');
-  const [academicYear, setAcademicYear] = useState('2024/2025');
-  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [term, setTerm] = useState<Term>(() => getCurrentTerm());
+  const [academicYear, setAcademicYear] = useState<string>(() => getCurrentAcademicYear());
   const [loadingResults, setLoadingResults] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!schoolId) { setLoadingClasses(false); return; }
-    api.get<Class[]>(`/schools/${schoolId}/classes`)
-      .then(setClasses)
-      .catch(() => {})
-      .finally(() => setLoadingClasses(false));
-  }, [schoolId]);
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) { setClassResults([]); setResultStatus(null); return; }
@@ -122,6 +111,16 @@ export const SubmitResultsPage = () => {
 
   return (
     <DashboardLayout>
+      {noClasses && (
+        <div className="rounded-xl bg-error-container text-on-error-container px-5 py-4 flex items-start gap-3">
+          <span className="material-symbols-outlined mt-0.5">warning</span>
+          <div>
+            <p className="font-bold text-sm">No Classes Assigned</p>
+            <p className="text-sm mt-0.5">You have not been assigned to any class yet. Please contact your principal to get assigned before you can access class data.</p>
+          </div>
+        </div>
+      )}
+      {!noClasses && (
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
 
         {/* Header */}
@@ -318,10 +317,19 @@ export const SubmitResultsPage = () => {
                 <p className="text-sm text-on-surface-variant mb-5">
                   {isRejected ? 'Make the required corrections then resubmit for approval.' : 'Once submitted, the principal will be notified to review and approve. Results can only be downloaded after approval.'}
                 </p>
-                {!allComplete && (
-                  <div className="flex items-center gap-3 p-4 bg-tertiary-fixed/30 rounded-xl mb-5">
-                    <Icon name="warning" className="text-on-tertiary-container flex-shrink-0" />
-                    <p className="text-sm text-on-surface">Complete all checklist items above before submitting.</p>
+               {!allComplete && (
+                  <div className="flex items-start gap-3 p-4 bg-tertiary-fixed/30 rounded-xl mb-5">
+                    <Icon name="warning" className="text-on-tertiary-container flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-on-surface">
+                      <p className="font-bold mb-1">The following items must be completed before submitting:</p>
+                      <ul className="space-y-0.5 list-none">
+                        {!hasStudents && <li className="flex items-center gap-1.5"><Icon name="close" className="text-error text-sm" /> No students added to this class</li>}
+                        {!hasSubjects && <li className="flex items-center gap-1.5"><Icon name="close" className="text-error text-sm" /> No subjects added to this class</li>}
+                        {hasStudents && !scoresComplete && <li className="flex items-center gap-1.5"><Icon name="close" className="text-error text-sm" /> Academic scores incomplete — {studentsWithFullScores.length} of {totalStudents} students scored</li>}
+                        {hasStudents && !psychometricComplete && <li className="flex items-center gap-1.5"><Icon name="close" className="text-error text-sm" /> Psychometric assessment incomplete — {studentsWithPsychometric.length} of {totalStudents} students assessed</li>}
+                        {hasStudents && !commentsComplete && <li className="flex items-center gap-1.5"><Icon name="close" className="text-error text-sm" /> Teacher comments missing — {studentsWithComments.length} of {totalStudents} students have comments</li>}
+                      </ul>
+                    </div>
                   </div>
                 )}
                 <button
@@ -342,6 +350,7 @@ export const SubmitResultsPage = () => {
           </>
         )}
       </div>
+      )}
     </DashboardLayout>
   );
 };

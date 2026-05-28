@@ -281,10 +281,10 @@ export const TeachersPage = () => {
                     <div>
                       <p className="font-bold text-on-surface text-sm">{teacher.firstName} {teacher.lastName}</p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {classes.filter((c) => c.teacherId === teacher.id).length === 0 ? (
+                        {classes.filter((c) => c.teacherId === teacher.userId).length === 0 ? (
                           <span className="text-xs text-on-surface-variant/50 italic">No class assigned</span>
                         ) : (
-                          classes.filter((c) => c.teacherId === teacher.id).map((c) => (
+                          classes.filter((c) => c.teacherId === teacher.userId).map((c) => (
                             <span key={c.id} className="text-[10px] font-bold px-2 py-0.5 bg-primary/5 text-primary rounded-full">{c.name}</span>
                           ))
                         )}
@@ -346,10 +346,10 @@ export const TeachersPage = () => {
                       </div>
                       <p className="text-sm text-on-surface-variant mt-0.5 break-all">{teacher.email}</p>
                       <div className="flex flex-wrap gap-1 mt-1.5">
-                        {classes.filter((c) => c.teacherId === teacher.id).length === 0 ? (
+                        {classes.filter((c) => c.teacherId === teacher.userId).length === 0 ? (
                           <span className="text-xs text-on-surface-variant/50 italic">No class assigned</span>
                         ) : (
-                          classes.filter((c) => c.teacherId === teacher.id).map((c) => (
+                          classes.filter((c) => c.teacherId === teacher.userId).map((c) => (
                             <span key={c.id} className="text-[10px] font-bold px-2 py-0.5 bg-primary/5 text-primary rounded-full">{c.name}</span>
                           ))
                         )}

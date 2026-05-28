@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
+import { useTeacherClasses } from '@/lib/useTeacherClasses';
 import { DEFAULT_PSYCHOMETRIC_SKILLS, PSYCHOMETRIC_RATING_LABELS } from '@/types';
-import { Class, Student, Term } from '@/types';
-
+import { Student, Term } from '@/types';
+import { getCurrentTerm, getCurrentAcademicYear } from '@/components/ui/TermSelector';
 const SCORES = [1, 2, 3, 4, 5];
 
 const SCORE_COLORS: Record<number, string> = {
@@ -37,31 +37,20 @@ interface PsychometricEntry {
 }
 
 export const PsychometricPage = () => {
-  const user = useAuthStore((s) => s.user);
-  const schoolId = user?.schoolId ?? '';
+  const { classes, loading: loadingClasses, noClasses, schoolId } = useTeacherClasses();
 
-  const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [psychometrics, setPsychometrics] = useState<PsychometricEntry[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [term, setTerm] = useState<Term>('first');
-  const [academicYear, setAcademicYear] = useState('2024/2025');
+  const [term, setTerm] = useState<Term>(() => getCurrentTerm());
+  const [academicYear, setAcademicYear] = useState<string>(() => getCurrentAcademicYear());
   const [activeCategory, setActiveCategory] = useState<'affective' | 'psychomotor'>('affective');
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedStudents, setSavedStudents] = useState<Set<string>>(new Set());
-  const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!schoolId) { setLoadingClasses(false); return; }
-    api.get<Class[]>(`/schools/${schoolId}/classes`)
-      .then(setClasses)
-      .catch(() => {})
-      .finally(() => setLoadingClasses(false));
-  }, [schoolId]);
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) { setStudents([]); setPsychometrics([]); setSavedStudents(new Set()); return; }
@@ -142,6 +131,16 @@ export const PsychometricPage = () => {
 
   return (
     <DashboardLayout>
+      {noClasses && (
+        <div className="rounded-xl bg-error-container text-on-error-container px-5 py-4 flex items-start gap-3">
+          <span className="material-symbols-outlined mt-0.5">warning</span>
+          <div>
+            <p className="font-bold text-sm">No Classes Assigned</p>
+            <p className="text-sm mt-0.5">You have not been assigned to any class yet. Please contact your principal to get assigned before you can access class data.</p>
+          </div>
+        </div>
+      )}
+      {!noClasses && (
       <div className="space-y-6 animate-fade-in">
 
         {/* Header */}
@@ -360,6 +359,7 @@ export const PsychometricPage = () => {
           </>
         )}
       </div>
+      )}
     </DashboardLayout>
   );
 };

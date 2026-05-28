@@ -22,7 +22,6 @@ import {
   Subject,
   Class,
   ClassResult,
-  PsychometricRating,
   PsychometricAssessment,
   ResultComment,
   Score,
@@ -303,8 +302,28 @@ export const DownloadsPage = () => {
     window.open(url, "_blank");
   };
 
+  // Gate: every student must have a principal comment before download is allowed.
+  const missingPrincipalComments = classResults.filter(
+    (r) => !r.comment?.principalComment?.trim(),
+  );
+  const canDownload =
+    classResults.length > 0 && missingPrincipalComments.length === 0;
+
   const handleDownloadZip = async () => {
     if (!school || classResults.length === 0) return;
+
+    if (missingPrincipalComments.length > 0) {
+      const names = missingPrincipalComments
+        .map((r) => `${r.student.lastName} ${r.student.firstName}`)
+        .join(", ");
+      setError(
+        `Cannot download — principal comment missing for ${missingPrincipalComments.length} student${
+          missingPrincipalComments.length > 1 ? "s" : ""
+        }: ${names}. Go to Approvals to write comments first.`,
+      );
+      return;
+    }
+
     setZipping(true);
 
     // Strip path separators and other chars that are illegal in filenames on
@@ -340,6 +359,17 @@ export const DownloadsPage = () => {
   };
 
   const handlePrintAll = () => {
+    if (missingPrincipalComments.length > 0) {
+      const names = missingPrincipalComments
+        .map((r) => `${r.student.lastName} ${r.student.firstName}`)
+        .join(", ");
+      setError(
+        `Cannot print — principal comment missing for ${missingPrincipalComments.length} student${
+          missingPrincipalComments.length > 1 ? "s" : ""
+        }: ${names}. Go to Approvals to write comments first.`,
+      );
+      return;
+    }
     classResults.forEach((result, idx) => {
       setTimeout(() => openResultInNewTab(result), idx * 500);
     });
@@ -486,7 +516,7 @@ export const DownloadsPage = () => {
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
                       <button
                         onClick={handlePrintAll}
-                        disabled={loadingResults || classResults.length === 0}
+                        disabled={loadingResults || !canDownload}
                         className="btn-ghost text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-base">print</span>
@@ -494,7 +524,7 @@ export const DownloadsPage = () => {
                       </button>
                       <button
                         onClick={handleDownloadZip}
-                        disabled={loadingResults || classResults.length === 0 || zipping}
+                        disabled={loadingResults || !canDownload || zipping}
                         className="btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {zipping ? (
@@ -512,6 +542,21 @@ export const DownloadsPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Missing-comment gate banner */}
+                {!loadingResults && missingPrincipalComments.length > 0 && (
+                  <div className="mb-6 ledger-card p-4 flex items-start gap-3 border-l-4 border-error">
+                    <span className="material-symbols-outlined text-error mt-0.5">block</span>
+                    <div className="text-sm">
+                      <p className="font-bold text-on-surface">
+                        Download locked — {missingPrincipalComments.length} student{missingPrincipalComments.length > 1 ? "s" : ""} still need{missingPrincipalComments.length > 1 ? "" : "s"} your comment
+                      </p>
+                      <p className="text-on-surface-variant mt-0.5">
+                        Go to <span className="font-bold">Approvals</span> and write a per-student principal comment before you can print or download this class.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Student list */}
                 {loadingResults ? (

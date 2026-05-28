@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { Class, Term } from '@/types';
+import { useTeacherClasses } from '@/lib/useTeacherClasses';
+import { Term } from '@/types';
+import { getCurrentTerm, getCurrentAcademicYear } from '@/components/ui/TermSelector';
 
 const QUICK_COMMENTS = [
   'An excellent student who consistently performs above expectations. Keep it up!',
@@ -45,30 +46,19 @@ interface Comment {
 }
 
 export const CommentsPage = () => {
-  const user = useAuthStore((s) => s.user);
-  const schoolId = user?.schoolId ?? '';
+  const { classes, loading: loadingClasses, noClasses, schoolId } = useTeacherClasses();
 
-  const [classes, setClasses] = useState<Class[]>([]);
   const [classResults, setClassResults] = useState<ComputedResult[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [term, setTerm] = useState<Term>('first');
-  const [academicYear, setAcademicYear] = useState('2024/2025');
+  const [term, setTerm] = useState<Term>(() => getCurrentTerm());
+  const [academicYear, setAcademicYear] = useState<string>(() => getCurrentAcademicYear());
   const [commentText, setCommentText] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedStudents, setSavedStudents] = useState<Set<string>>(new Set());
-  const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!schoolId) { setLoadingClasses(false); return; }
-    api.get<Class[]>(`/schools/${schoolId}/classes`)
-      .then(setClasses)
-      .catch(() => {})
-      .finally(() => setLoadingClasses(false));
-  }, [schoolId]);
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) {
@@ -148,6 +138,16 @@ export const CommentsPage = () => {
 
   return (
     <DashboardLayout>
+      {noClasses && (
+        <div className="rounded-xl bg-error-container text-on-error-container px-5 py-4 flex items-start gap-3">
+          <span className="material-symbols-outlined mt-0.5">warning</span>
+          <div>
+            <p className="font-bold text-sm">No Classes Assigned</p>
+            <p className="text-sm mt-0.5">You have not been assigned to any class yet. Please contact your principal to get assigned before you can access class data.</p>
+          </div>
+        </div>
+      )}
+      {!noClasses && (
       <div className="space-y-6 animate-fade-in">
 
         {/* Header */}
@@ -341,6 +341,7 @@ export const CommentsPage = () => {
           </>
         )}
       </div>
+      )}
     </DashboardLayout>
   );
 };

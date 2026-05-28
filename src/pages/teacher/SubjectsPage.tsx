@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
-import { Class, Subject } from '@/types';
+import { useTeacherClasses } from '@/lib/useTeacherClasses';
+import { Subject } from '@/types';
 
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
@@ -21,13 +21,10 @@ const SUGGESTIONS = [
 ];
 
 export const SubjectsPage = () => {
-  const user = useAuthStore((s) => s.user);
-  const schoolId = user?.schoolId ?? '';
+  const { classes, loading: loadingClasses, noClasses, schoolId } = useTeacherClasses();
 
-  const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedClassId, setSelectedClassId] = useState('');
-  const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,14 +34,6 @@ export const SubjectsPage = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!schoolId) { setLoadingClasses(false); return; }
-    api.get<Class[]>(`/schools/${schoolId}/classes`)
-      .then(setClasses)
-      .catch(() => {})
-      .finally(() => setLoadingClasses(false));
-  }, [schoolId]);
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) { setSubjects([]); return; }
@@ -134,6 +123,16 @@ export const SubjectsPage = () => {
 
   return (
     <DashboardLayout>
+      {noClasses && (
+        <div className="rounded-xl bg-error-container text-on-error-container px-5 py-4 flex items-start gap-3">
+          <span className="material-symbols-outlined mt-0.5">warning</span>
+          <div>
+            <p className="font-bold text-sm">No Classes Assigned</p>
+            <p className="text-sm mt-0.5">You have not been assigned to any class yet. Please contact your principal to get assigned before you can access class data.</p>
+          </div>
+        </div>
+      )}
+      {!noClasses && (
       <div className="space-y-6 animate-fade-in">
 
         {/* Header */}
@@ -307,6 +306,7 @@ export const SubjectsPage = () => {
         )}
 
       </div>
+      )}
     </DashboardLayout>
   );
 };
