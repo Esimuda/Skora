@@ -237,4 +237,101 @@ export class MailService {
       context: 'password-reset',
     });
   }
+  async sendBatchRequestNotification(opts: {
+    schoolName: string;
+    principalName: string;
+    principalEmail: string;
+    quantity: number;
+    totalAmount: number;
+    term: string;
+    academicYear: string;
+  }) {
+    const superAdminEmail = this.config.get<string>('SUPER_ADMIN_EMAIL', '');
+    if (!superAdminEmail) return;
+
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:8px">
+        <div style="background:#001944;padding:24px;border-radius:6px;text-align:center;margin-bottom:24px">
+          <h1 style="color:#fff;margin:0;font-size:24px">Skora RMS</h1>
+          <p style="color:#b3c5ff;margin:4px 0 0">Admin Alert</p>
+        </div>
+        <h2 style="color:#001944">New Batch Request</h2>
+        <p><strong>${opts.schoolName}</strong> has requested a scratch card batch.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">School</td>
+            <td style="padding:8px 12px">${opts.schoolName}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;font-weight:700">Principal</td>
+            <td style="padding:8px 12px">${opts.principalName} (${opts.principalEmail})</td>
+          </tr>
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">Cards Requested</td>
+            <td style="padding:8px 12px">${opts.quantity}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;font-weight:700">Amount Due</td>
+            <td style="padding:8px 12px;font-weight:900;color:#001944">₦${opts.totalAmount.toLocaleString()}</td>
+          </tr>
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">Term</td>
+            <td style="padding:8px 12px">${opts.term} Term · ${opts.academicYear}</td>
+          </tr>
+        </table>
+        <p style="color:#757682;font-size:13px">Log in to the Skora admin panel to confirm payment and activate this batch.</p>
+        <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0">
+        <p style="color:#757682;font-size:12px">Skora RMS — Platform Admin Notification</p>
+      </div>
+    `;
+
+    await this.send({
+      to: superAdminEmail,
+      subject: `New batch request — ${opts.schoolName} (₦${opts.totalAmount.toLocaleString()})`,
+      html,
+      context: 'batch-request',
+    });
+  }
+
+  async sendBatchActivatedNotification(opts: {
+    to: string;
+    principalName: string;
+    schoolName: string;
+    quantity: number;
+    term: string;
+    academicYear: string;
+  }) {
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:8px">
+        <div style="background:#001944;padding:24px;border-radius:6px;text-align:center;margin-bottom:24px">
+          <h1 style="color:#fff;margin:0;font-size:24px">Skora RMS</h1>
+          <p style="color:#b3c5ff;margin:4px 0 0">Academic Ledger</p>
+        </div>
+        <h2 style="color:#001944">Your Scratch Cards Are Ready</h2>
+        <p>Hello <strong>${opts.principalName}</strong>,</p>
+        <p>Your payment has been confirmed and your scratch card batch for <strong>${opts.schoolName}</strong> has been activated.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">Cards Ready</td>
+            <td style="padding:8px 12px;font-weight:900;color:#001944">${opts.quantity} PINs</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;font-weight:700">Term</td>
+            <td style="padding:8px 12px">${opts.term} Term · ${opts.academicYear}</td>
+          </tr>
+        </table>
+        <p>Log in to Skora RMS, go to <strong>Settings → Result Access Cards</strong>, and click <strong>Download Cards PDF</strong> to print your scratch cards.</p>
+        <p style="color:#757682;font-size:13px">Each card is valid for 5 uses. Sell them to parents at your preferred price.</p>
+        <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0">
+        <p style="color:#757682;font-size:12px">Skora RMS — Nigerian School Result Management System</p>
+      </div>
+    `;
+
+    await this.send({
+      to: opts.to,
+      subject: `Your ${opts.quantity} scratch cards are ready — ${opts.schoolName}`,
+      html,
+      context: 'batch-activated',
+    });
+  }
 }

@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SchoolsModule } from './schools/schools.module';
@@ -11,70 +11,47 @@ import { ClassesModule } from './classes/classes.module';
 import { StudentsModule } from './students/students.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { ScoresModule } from './scores/scores.module';
+import { ResultsModule } from './results/results.module';
+import { CommentsModule } from './comments/comments.module';
 import { PsychometricModule } from './psychometric/psychometric.module';
 import { AttendanceModule } from './attendance/attendance.module';
-import { CommentsModule } from './comments/comments.module';
-import { ResultsModule } from './results/results.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MessagesModule } from './messages/messages.module';
 import { MailModule } from './mail/mail.module';
-import { HealthModule } from './health/health.module';
+import { PinBatchesModule } from './pin-batches/pin-batches.module';
+import { PayoutsModule } from './payouts/payouts.module';
+import { AdminModule } from './admin/admin.module';
+import { PortalModule } from './portal/portal.module';
 
 @Module({
   imports: [
+    // Config — global so ConfigService is available everywhere
     ConfigModule.forRoot({ isGlobal: true }),
 
-    // ── Rate limiting ──────────────────────────────────────────────────────────
-    // 300 requests per minute per IP — generous for real-time score saving,
-    // tight enough to prevent DoS. Auth endpoints get tighter limits via decorator.
+    // Rate limiting — protects portal PIN validation endpoint
     ThrottlerModule.forRoot([
       {
-        name: 'default',
-        ttl: 60_000,   // 1 minute window
-        limit: 300,
-      },
-      {
-        name: 'auth',
-        ttl: 60_000,
-        limit: 10,     // 10 login/register attempts per minute
+        ttl: 3600000, // 1 hour in milliseconds
+        limit: 5,     // max 5 PIN attempts per IP per hour
       },
     ]),
 
-    // ── Database ───────────────────────────────────────────────────────────────
+    // Database
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        host: config.get('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get('DB_USERNAME', 'postgres'),
-        password: config.get('DB_PASSWORD', ''),
-        database: config.get('DB_DATABASE', 'skora_rms'),
+        url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
-        // In production set DB_SYNCHRONIZE=true for first boot to create tables,
-        // then remove it. After that, use migrations for schema changes.
-        synchronize:
-          config.get('NODE_ENV') !== 'production' ||
-          config.get('DB_SYNCHRONIZE') === 'true',
-        ssl: { rejectUnauthorized: false },
-        logging: config.get('NODE_ENV') === 'development',
-        migrationsRun: config.get('NODE_ENV') === 'production',
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
-        migrationsTableName: 'typeorm_migrations',
-
-        // ── Connection pool tuning for 5 000 concurrent users ──────────────────
-        // Each NestJS instance holds at most 20 PG connections.
-        // Supabase transaction pooler supports many connections → scale horizontally.
-        extra: {
-          max: 20,               // max pool connections per instance
-          min: 2,                // keep 2 warm at all times
-          idleTimeoutMillis: 30_000,   // drop idle connections after 30s
-          connectionTimeoutMillis: 10_000, // fail fast if pool is exhausted
-          statement_timeout: 30_000,   // kill runaway queries after 30s
-        },
+        synchronize: config.get<string>('NODE_ENV') !== 'production',
+        ssl:
+          config.get<string>('NODE_ENV') === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
 
+    // Core modules
     AuthModule,
     UsersModule,
     SchoolsModule,
@@ -83,19 +60,19 @@ import { HealthModule } from './health/health.module';
     StudentsModule,
     SubjectsModule,
     ScoresModule,
+    ResultsModule,
+    CommentsModule,
     PsychometricModule,
     AttendanceModule,
-    CommentsModule,
-    ResultsModule,
     NotificationsModule,
     MessagesModule,
     MailModule,
-    HealthModule,
-  ],
 
-  providers: [
-    // Apply rate limiting globally
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // New modules
+    PinBatchesModule,
+    PayoutsModule,
+    AdminModule,
+    PortalModule,
   ],
 })
 export class AppModule {}

@@ -20,6 +20,39 @@ export class SchoolsService {
     return school;
   }
 
+  // Returns all schools — used by super admin panel and portal
+  findAll() {
+    return this.repo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  // Returns school + counts for admin school detail page
+  async findOneWithStats(schoolId: string) {
+    const school = await this.repo.findOne({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException('School not found');
+
+    // Raw counts via query builder for efficiency
+    const [teacherCount, classCount, studentCount] = await Promise.all([
+      this.repo.manager.count('teachers', {
+        where: { schoolId },
+      } as any),
+      this.repo.manager.count('classes', {
+        where: { schoolId },
+      } as any),
+      this.repo.manager.count('students', {
+        where: { schoolId },
+      } as any),
+    ]);
+
+    return {
+      ...school,
+      stats: {
+        teacherCount,
+        classCount,
+        studentCount,
+      },
+    };
+  }
+
   async findOne(id: string) {
     const school = await this.repo.findOne({ where: { id } });
     if (!school) throw new NotFoundException('School not found');
@@ -56,7 +89,7 @@ export class SchoolsService {
   }
 
   assertSchoolAccess(schoolId: string, user: any) {
-    if (user.role === 'admin') return;
+    if (user.role === 'admin' || user.role === 'super_admin') return;
     if (user.schoolId !== schoolId) throw new ForbiddenException('Access denied');
   }
 }

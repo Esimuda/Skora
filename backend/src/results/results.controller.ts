@@ -37,6 +37,22 @@ export class ResultsController {
     return this.service.findAll(schoolId, status, term, academicYear);
   }
 
+  // source=portal means a valid PIN was used — return clean data
+    // Any other source (principal preview) gets flagged as watermarked
+    const isPortal = req.query.source === 'portal';
+    const pinUseId = req.query.pinUseId as string | undefined;
+
+    // If not from portal, mark response as watermarked
+    // The frontend template checks this flag and renders overlays
+    if (!isPortal || !pinUseId) {
+      // Still return the data but flag it
+      const data = await this.service.getComputedResults(schoolId, classId, term, academicYear);
+      return { data, watermarked: true };
+    }
+
+    const data = await this.service.getComputedResults(schoolId, classId, term, academicYear);
+    return { data, watermarked: false };
+
   @Get(':classId/status')
   findOne(
     @Param('schoolId') schoolId: string,

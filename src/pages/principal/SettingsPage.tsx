@@ -8,6 +8,9 @@ import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
 import { ModernResultSheet } from "@/templates/ModernResultSheet";
 import { HybridResultSheet } from "@/templates/HybridResultSheet";
 import { StudentResult, School } from "@/types";
+import { getCurrentTerm, getCurrentAcademicYear, getAcademicYearOptions } from '@/components/ui/TermSelector';
+import type { Term } from '@/types';
+import { generateCardsPdf } from '@/lib/generateCardsPdf';
 
 const PREVIEW_RESULT: StudentResult = {
   student: {
@@ -104,6 +107,20 @@ export const SettingsPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+
+  // ── Scratch card batch state ──────────────────────────────────────────────
+  const [batches, setBatches] = useState<any[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(true);
+  const [batchForm, setBatchForm] = useState({
+    quantity: '',
+    term: getCurrentTerm() as Term,
+    academicYear: getCurrentAcademicYear(),
+  });
+  const [requestingBatch, setRequestingBatch] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchSuccess, setBatchSuccess] = useState(false);
+
+
   const buildPreviewSchool = (): School => ({
     id: "preview",
     name: form.name || "Government Secondary School, Ikeja",
@@ -158,6 +175,14 @@ export const SettingsPage = () => {
     });
   }, [user?.schoolId]);
 
+  useEffect(() => {
+    if (!user?.schoolId) return;
+    api.get<any[]>(`/schools/${user.schoolId}/batches`)
+      .then(setBatches)
+      .catch(() => {})
+      .finally(() => setLoadingBatches(false));
+  }, [user?.schoolId]);
+
   const handleSave = async () => {
     if (!user?.schoolId) return;
     setSaving(true);
@@ -197,6 +222,33 @@ export const SettingsPage = () => {
     // navigate is unreachable after replace but kept defensively in case the
     // browser delays the reload for an event-loop tick.
     navigate("/login", { replace: true });
+  };
+  const handleRequestBatch = async () => {
+    if (!user?.schoolId || !batchForm.quantity) return;
+    setRequestingBatch(true);
+    setBatchError(null);
+    try {
+      const created = await api.post<any>(
+        `/schools/${user.schoolId}/batches`,
+        {
+          quantity: Number(batchForm.quantity),
+          term: batchForm.term,
+          academicYear: batchForm.academicYear,
+        },
+      );
+      setBatches((prev) => [created, ...prev]);
+      setBatchSuccess(true);
+      setBatchForm({
+        quantity: '',
+        term: getCurrentTerm() as Term,
+        academicYear: getCurrentAcademicYear(),
+      });
+      setTimeout(() => setBatchSuccess(false), 5000);
+    } catch (e: any) {
+      setBatchError(e.message ?? 'Failed to submit batch request');
+    } finally {
+      setRequestingBatch(false);
+    }
   };
 
   const inputCls = "input-inset";
@@ -490,6 +542,207 @@ export const SettingsPage = () => {
           </button>
         </div>
         {/* Danger Zone */}
+        {/* ── Result Access Cards ── */}
+        <div className="ledger-card p-6">
+          <h3 className="font-headline font-bold text-lg text-primary mb-1 flex items-center gap-2">
+            <Icon name="style" /> Result Access Cards
+          </h3>
+          <p className="text-sm text-on-surface-variant mb-5">
+            Purchase scratch card batches to unlock result generation for the term. Parents use these cards to access result sheets on the Skora parent portal.
+          </p>
+
+          {/* Request form */}
+          <div className="bg-surface-container-low rounded-xl p-5 mb-6">
+            <p className="font-bold text-sm text-on-surface mb-4">Request a New Batch</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                  Term <span className="text-error">*</span>
+                </label>
+                <select
+                  value={batchForm.term}
+                  onChange={(e) => setBatchForm({ ...batchForm, term: e.target.value as Term })}
+                  className="input-inset"
+                >
+                  <option value="first">First Term</option>
+                  <option value="second">Second Term</option>
+                  <option value="third">Third Term</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                  Academic Year <span className="text-error">*</span>
+                </label>
+                <select
+                  value={batchForm.academicYear}
+                  onChange={(e) => setBatchForm({ ...batchForm, academicYear: e.target.value })}
+                  className="input-inset"
+                >
+                  {getAcademicYearOptions(5).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                  Number of Cards <span className="text-error">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={batchForm.quantity}
+                  onChange={(e) => setBatchForm({ ...batchForm, quantity: e.target.value })}
+                  placeholder="e.g. 300"
+                  className="input-inset"
+                />
+              </div>
+            </div>
+
+            {/* Cost summary */}
+            {batchForm.quantity && Number(batchForm.quantity) > 0 && (
+              <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-xl mb-4">
+                <Icon name="calculate" className="text-primary flex-shrink-0" />
+                <div className="text-sm">
+                  <span className="font-bold text-on-surface">
+                    {Number(batchForm.quantity).toLocaleString()} cards × ₦1,000
+                  </span>
+                  <span className="text-on-surface-variant"> = </span>
+                  <span className="font-black text-primary text-base">
+                    ₦{(Number(batchForm.quantity) * 1000).toLocaleString()}
+                  </span>
+                  <span className="text-on-surface-variant text-xs block mt-0.5">
+                    Transfer this amount to Skora's account after submitting
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {batchError && (
+              <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm mb-4">
+                {batchError}
+              </div>
+            )}
+
+            <button
+              onClick={handleRequestBatch}
+              disabled={requestingBatch || !batchForm.quantity || Number(batchForm.quantity) < 1}
+              className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2"
+            >
+              {requestingBatch ? (
+                <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Submitting...</>
+              ) : (
+                <><Icon name="send" className="text-base" /> Submit Batch Request</>
+              )}
+            </button>
+          </div>
+
+          {/* Payment instructions — shown after successful request */}
+          {batchSuccess && (
+            <div className="p-5 bg-secondary-container/30 rounded-xl border border-secondary/20 mb-6">
+              <div className="flex items-start gap-3">
+                <Icon name="check_circle" className="text-secondary text-xl flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-on-surface mb-2">Batch request submitted successfully!</p>
+                  <p className="text-sm text-on-surface-variant mb-3">
+                    To activate your batch, transfer the exact amount to:
+                  </p>
+                  <div className="bg-surface rounded-xl p-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-on-surface-variant font-medium">Bank</span>
+                      <span className="font-bold text-on-surface">— Your Bank Name —</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-on-surface-variant font-medium">Account Name</span>
+                      <span className="font-bold text-on-surface">— Your Account Name —</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-on-surface-variant font-medium">Account Number</span>
+                      <span className="font-bold text-on-surface">— Your Account Number —</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-on-surface-variant font-medium">Narration</span>
+                      <span className="font-bold text-on-surface">{school?.name ?? 'School name'} — Scratch Cards</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-on-surface-variant mt-3">
+                    Your batch will be activated within 24 hours of payment confirmation. You will receive an email notification when it is ready.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Batch history */}
+          <div>
+            <p className="font-bold text-sm text-on-surface mb-3">Batch History</p>
+            {loadingBatches ? (
+              <div className="flex items-center gap-2 text-sm text-on-surface-variant py-4">
+                <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> Loading...
+              </div>
+            ) : batches.length === 0 ? (
+              <div className="text-center py-8 text-on-surface-variant">
+                <Icon name="style" className="text-4xl text-outline/30 block mx-auto mb-2" />
+                <p className="text-sm font-bold">No batches yet</p>
+                <p className="text-xs mt-1">Your first batch request will appear here</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-outline-variant/10 rounded-xl border border-outline-variant/15 overflow-hidden">
+                {batches.map((batch) => (
+                  <div key={batch.id} className="px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-on-surface text-sm capitalize">
+                          {batch.term} Term · {batch.academicYear}
+                        </p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          batch.status === 'active'
+                            ? 'badge-validated'
+                            : batch.status === 'exhausted'
+                            ? 'bg-surface-container-highest text-on-surface-variant'
+                            : 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                        }`}>
+                          {batch.status === 'pending_payment'
+                            ? 'Awaiting Activation'
+                            : batch.status === 'active'
+                            ? 'Active'
+                            : 'Exhausted'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant mt-0.5">
+                        {batch.quantity} cards · ₦{batch.totalAmount.toLocaleString()} ·{' '}
+                        {new Date(batch.requestedAt).toLocaleDateString('en-NG', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    {batch.status === 'active' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const pins = await api.get<string[]>(
+                              `/schools/${user?.schoolId}/batches/${batch.id}/pins`
+                            );
+                            generateCardsPdf({
+                              pins,
+                              schoolName: school?.name ?? 'School',
+                              term: batch.term,
+                              academicYear: batch.academicYear,
+                            });
+                          } catch (e: any) {
+                            setBatchError(e.message ?? 'Failed to download cards');
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+                      >
+                        <Icon name="download" className="text-sm" /> Download Cards
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="ledger-card p-6 border border-error/30">
           <h3 className="font-headline font-bold text-lg text-error mb-1 flex items-center gap-2">
             <Icon name="warning" /> Danger Zone
