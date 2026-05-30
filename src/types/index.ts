@@ -1,5 +1,5 @@
 // User Roles
-export type UserRole = 'admin' | 'school_admin' | 'teacher';
+export type UserRole = 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
 export interface User {
   id: string;

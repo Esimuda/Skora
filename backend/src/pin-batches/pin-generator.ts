@@ -14,7 +14,6 @@ export class PinGenerator {
   ) {}
 
   // Generates a single raw PIN in format XXXX-XXXX-XXXX
-  // Uses cryptographically secure randomness — never Math.random()
   private generateRawPin(): string {
     const bytes = crypto.randomBytes(8);
     let digits = '';
@@ -25,19 +24,22 @@ export class PinGenerator {
     return `${padded.slice(0, 4)}-${padded.slice(4, 8)}-${padded.slice(8, 12)}`;
   }
 
-  // Checks if a plain PIN already exists in the DB for this school
-  // while pinDisplay is still populated (before PDF download)
-  private async isDuplicate(
-    rawPin: string,
-    schoolId: string,
-  ): Promise<boolean> {
+  // Checks if a plain PIN already exists by comparing against stored bcrypt hashes.
+  // This is slow (O(n) bcrypt comparisons) but correct and collision-safe.
+  // For production scale (hundreds of PINs per school), this is fine.
+  private async isDuplicate(rawPin: string, schoolId: string): Promise<boolean> {
+    // Pull all hashed PINs for this school — select: false columns need addSelect
     const existing = await this.repo
       .createQueryBuilder('p')
-      .addSelect('p.pinDisplay')
+      .addSelect('p.pin')
       .where('p.schoolId = :schoolId', { schoolId })
-      .andWhere('p.pinDisplay = :rawPin', { rawPin })
-      .getOne();
-    return !!existing;
+      .getMany();
+
+    for (const record of existing) {
+      const match = await bcrypt.compare(rawPin, record.pin);
+      if (match) return true;
+    }
+    return false;
   }
 
   // Generates a unique raw PIN — retries up to 10 times on collision
@@ -47,9 +49,7 @@ export class PinGenerator {
       const duplicate = await this.isDuplicate(raw, schoolId);
       if (!duplicate) return raw;
     }
-    throw new Error(
-      'PIN generation failed after 10 attempts — please try again',
-    );
+    throw new Error('PIN generation failed after 10 attempts — please try again');
   }
 
   // Generates an entire batch of PINs inside a single DB transaction.
@@ -115,9 +115,7 @@ export class PinGenerator {
       .andWhere('p.isActive = true')
       .andWhere('p.usesRemaining > 0')
       .andWhere('p.term = :term', { term: opts.term })
-      .andWhere('p.academicYear = :academicYear', {
-        academicYear: opts.academicYear,
-      })
+      .andWhere('p.academicYear = :academicYear', { academicYear: opts.academicYear })
       .getMany();
 
     for (const candidate of candidates) {
@@ -128,10 +126,24 @@ export class PinGenerator {
     return null;
   }
 
-  // Decrements uses on a validated PIN.
-  // Called immediately after validatePin succeeds.
+  // Decrements uses on a validated PIN using a WHERE guard to prevent race conditions.
+  // Returns the new usesRemaining value, or -1 if the PIN was already exhausted
+  // (another concurrent request consumed the last use simultaneously).
   async consumeUse(pinId: string): Promise<number> {
-    await this.repo.decrement({ id: pinId }, 'usesRemaining', 1);
+    // Atomic decrement — only decrements if usesRemaining > 0
+    const result = await this.repo
+      .createQueryBuilder()
+      .update(ResultPin)
+      .set({ usesRemaining: () => '"usesRemaining" - 1' })
+      .where('id = :pinId', { pinId })
+      .andWhere('"usesRemaining" > 0')
+      .execute();
+
+    if (result.affected === 0) {
+      // Race condition: another request consumed the last use before us
+      return -1;
+    }
+
     const updated = await this.repo.findOne({ where: { id: pinId } });
     return updated?.usesRemaining ?? 0;
   }

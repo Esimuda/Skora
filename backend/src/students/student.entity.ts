@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 @Entity('students')
-@Index(['classId'])    // student list per class — the hottest read path
+@Index(['classId'])
 @Index(['schoolId'])
 export class Student {
   @PrimaryGeneratedColumn('uuid')
@@ -42,6 +42,10 @@ export class Student {
 
   @Column({ nullable: true })
   address: string;
+
+  // Passport photo stored as base64 string (same pattern as school logo)
+  @Column({ nullable: true, type: 'text' })
+  photoUrl: string;
 
   @CreateDateColumn()
   createdAt: Date;

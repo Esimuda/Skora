@@ -54,7 +54,7 @@ export class PinBatchesService {
       }),
     );
 
-    // Notify super admin via email that a new batch was requested
+    // Notify super admin via email
     this.mail.sendBatchRequestNotification({
       schoolName: school.name,
       principalName: batch.principalName,
@@ -82,7 +82,7 @@ export class PinBatchesService {
     }
 
     // Generate all PINs atomically
-    const { rawPins } = await this.generator.generateBatch({
+    await this.generator.generateBatch({
       batchId: batch.id,
       schoolId: batch.schoolId,
       quantity: batch.quantity,
@@ -137,41 +137,22 @@ export class PinBatchesService {
     unusedPins: number;
     exhaustedPins: number;
   }> {
-    // Find active batch for this term
     const batch = await this.batchRepo.findOne({
       where: { schoolId, term, academicYear, status: 'active' },
     });
 
     if (!batch) {
-      return {
-        hasActiveBatch: false,
-        totalPins: 0,
-        usedPins: 0,
-        unusedPins: 0,
-        exhaustedPins: 0,
-      };
+      return { hasActiveBatch: false, totalPins: 0, usedPins: 0, unusedPins: 0, exhaustedPins: 0 };
     }
 
-    const pins = await this.pinRepo.find({
-      where: { batchId: batch.id },
-    });
+    const pins = await this.pinRepo.find({ where: { batchId: batch.id } });
 
     const totalPins = pins.length;
     const exhaustedPins = pins.filter((p) => p.usesRemaining === 0).length;
-    const usedPins = pins.filter(
-      (p) => p.usesRemaining < p.usesTotal && p.usesRemaining > 0,
-    ).length;
-    const unusedPins = pins.filter(
-      (p) => p.usesRemaining === p.usesTotal,
-    ).length;
+    const usedPins = pins.filter((p) => p.usesRemaining < p.usesTotal && p.usesRemaining > 0).length;
+    const unusedPins = pins.filter((p) => p.usesRemaining === p.usesTotal).length;
 
-    return {
-      hasActiveBatch: true,
-      totalPins,
-      usedPins,
-      unusedPins,
-      exhaustedPins,
-    };
+    return { hasActiveBatch: true, totalPins, usedPins, unusedPins, exhaustedPins };
   }
 
   // ── Super Admin: get all batches ──────────────────────────────────────────
@@ -191,21 +172,17 @@ export class PinBatchesService {
     const allBatches = await this.batchRepo.find();
     const allPins = await this.pinRepo.find();
 
-    const pending = allBatches.filter(
-      (b) => b.status === 'pending_payment',
-    ).length;
+    const pending = allBatches.filter((b) => b.status === 'pending_payment').length;
     const active = allBatches.filter((b) => b.status === 'active').length;
     const totalPinsIssued = allPins.length;
-    const totalPinsUsed = allPins.filter(
-      (p) => p.usesRemaining < p.usesTotal,
-    ).length;
+    const totalPinsUsed = allPins.filter((p) => p.usesRemaining < p.usesTotal).length;
 
     return { pending, active, totalPinsIssued, totalPinsUsed };
   }
 
   // ── Super Admin: revenue breakdown per school ─────────────────────────────
 
-  async getRevenueBreakdown(): Promise<
+  async getRevenueBreakdown(): Promise
     {
       schoolId: string;
       schoolName: string;
@@ -223,7 +200,6 @@ export class PinBatchesService {
 
     const pins = await this.pinRepo.find();
 
-    // Group by school
     const map = new Map<string, any>();
     for (const batch of batches) {
       if (!map.has(batch.schoolId)) {
@@ -257,17 +233,10 @@ export class PinBatchesService {
 
   // ── Portal: get raw pins for PDF generation ───────────────────────────────
 
-  async getRawPinsForBatch(
-    batchId: string,
-    schoolId: string,
-  ): Promise<string[]> {
-    const batch = await this.batchRepo.findOne({
-      where: { id: batchId, schoolId },
-    });
+  async getRawPinsForBatch(batchId: string, schoolId: string): Promise<string[]> {
+    const batch = await this.batchRepo.findOne({ where: { id: batchId, schoolId } });
     if (!batch) throw new NotFoundException('Batch not found');
-    if (batch.status !== 'active') {
-      throw new BadRequestException('Batch is not active');
-    }
+    if (batch.status !== 'active') throw new BadRequestException('Batch is not active');
 
     const pins = await this.pinRepo
       .createQueryBuilder('p')
@@ -275,9 +244,13 @@ export class PinBatchesService {
       .where('p.batchId = :batchId', { batchId })
       .getMany();
 
-    const rawPins = pins
-      .map((p) => p.pinDisplay)
-      .filter(Boolean);
+    const rawPins = pins.map((p) => p.pinDisplay).filter(Boolean);
+
+    if (rawPins.length === 0) {
+      throw new BadRequestException(
+        'PIN display values have already been cleared. Cards were already downloaded for this batch.',
+      );
+    }
 
     // Clear pinDisplay after retrieval — plain PINs no longer stored
     await this.generator.clearPinDisplay(batchId);
@@ -311,8 +284,16 @@ export class PinBatchesService {
       };
     }
 
-    // Consume one use
+    // Atomic consume — handles race conditions
     const usesRemaining = await this.generator.consumeUse(pin.id);
+
+    if (usesRemaining === -1) {
+      // Another concurrent request consumed the last use — treat as exhausted
+      return {
+        valid: false,
+        reason: 'This PIN has been fully used. Please use a different scratch card.',
+      };
+    }
 
     // Log the use
     await this.useRepo.save(
@@ -334,7 +315,6 @@ export class PinBatchesService {
     return { valid: true, usesRemaining };
   }
 
-  // Marks a batch as exhausted when all its PINs are used up
   private async checkAndUpdateBatchStatus(batchId: string): Promise<void> {
     const pins = await this.pinRepo.find({ where: { batchId } });
     const allExhausted = pins.every((p) => p.usesRemaining === 0);
