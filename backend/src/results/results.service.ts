@@ -257,8 +257,17 @@ export class ResultsService {
     const psychoList = await this.psychometric.findByClass(schoolId, classId, term, academicYear);
     const commentList = await this.comments.findByClass(schoolId, classId, term, academicYear);
 
+    // Build a quick lookup map so we don't iterate subjectList per student
+    const subjectMap = new Map(subjectList.map((sub) => [sub.id, sub]));
+
     const studentResults = studentList.map((student) => {
-      const studentScores = scoreList.filter((s) => s.studentId === student.id);
+      const studentScores = scoreList
+        .filter((s) => s.studentId === student.id)
+        .map((s) => ({
+          ...s,
+          subjectName: subjectMap.get(s.subjectId)?.name ?? s.subjectId,
+          subjectCode: subjectMap.get(s.subjectId)?.code ?? null,
+        }));
       const totalScore = studentScores.reduce((sum, s) => sum + s.total, 0);
       const totalPossible = subjectList.length * 100;
       const percentage = totalPossible > 0 ? (totalScore / totalPossible) * 100 : 0;

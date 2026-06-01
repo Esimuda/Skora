@@ -408,7 +408,7 @@ export const ParentPortal = () => {
                 <div className="divide-y divide-outline-variant/10">
                   {result.scores?.map((score: any) => (
                     <div key={score.id} className="px-4 py-2.5 flex items-center justify-between">
-                      <p className="text-sm text-on-surface font-medium">{score.subjectId}</p>
+                      <p className="text-sm text-on-surface font-medium">{score.subjectName ?? score.subjectId}</p>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-bold text-on-surface">{score.total}</span>
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">{score.grade}</span>
