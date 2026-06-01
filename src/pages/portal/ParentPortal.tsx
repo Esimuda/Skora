@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
 import { getAcademicYearOptions, getCurrentTerm, getCurrentAcademicYear } from "@/components/ui/TermSelector";
 import type { Term } from "@/types";
 
 type Step = "school" | "class" | "student" | "confirm" | "term" | "pin" | "result";
+
+const API = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 const Icon = ({ name, className = "" }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
@@ -14,9 +15,11 @@ export const ParentPortal = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Selections
-  const [schools, setSchools] = useState<any[]>([]);
+  // Step 1 — school code input
+  const [schoolCode, setSchoolCode] = useState("");
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
+
+  // Steps 2+
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
@@ -26,40 +29,37 @@ export const ParentPortal = () => {
   const [pin, setPin] = useState("");
   const [result, setResult] = useState<any>(null);
 
-  // Load schools on mount
-  useEffect(() => {
-    setLoading(true);
-    fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/portal/schools`)
-      .then((r) => r.json())
-      .then(setSchools)
-      .catch(() => setError("Could not load schools. Please check your connection."))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const loadClasses = async (school: any) => {
+  // ── Step 1: Look up school by code ─────────────────────────────────────────
+  const handleLookupSchool = async () => {
+    const code = schoolCode.trim().toUpperCase();
+    if (!code) { setError("Please enter your school code."); return; }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/portal/schools/${school.id}/classes`,
-      );
+      const res = await fetch(`${API}/portal/schools/lookup?code=${encodeURIComponent(code)}`);
       const data = await res.json();
-      setClasses(data);
-      setSelectedSchool(school);
+      if (!res.ok) throw new Error(data.message ?? "School not found.");
+      setSelectedSchool(data);
+      // Load classes immediately after finding school
+      const cRes = await fetch(`${API}/portal/schools/${data.id}/classes`);
+      const cData = await cRes.json();
+      if (!cRes.ok) throw new Error("Could not load classes for this school.");
+      setClasses(cData);
       setStep("class");
-    } catch {
-      setError("Could not load classes.");
+    } catch (e: any) {
+      setError(e.message ?? "Could not find school. Please check the code and try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Step 2: Select class ───────────────────────────────────────────────────
   const loadStudents = async (cls: any) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/portal/schools/${selectedSchool.id}/classes/${cls.id}/students`,
+        `${API}/portal/schools/${selectedSchool.id}/classes/${cls.id}/students`,
       );
       const data = await res.json();
       setStudents(data);
@@ -72,38 +72,28 @@ export const ParentPortal = () => {
     }
   };
 
-  const handleSelectStudent = (student: any) => {
-    setSelectedStudent(student);
-    setStep("confirm");
-  };
+  // ── Step 3 → 4 → 5 ────────────────────────────────────────────────────────
+  const handleSelectStudent = (student: any) => { setSelectedStudent(student); setStep("confirm"); };
+  const handleConfirmChild = () => setStep("term");
+  const handleTermNext = () => setStep("pin");
 
-  const handleConfirmChild = () => {
-    setStep("term");
-  };
-
-  const handleTermNext = () => {
-    setStep("pin");
-  };
-
+  // ── Step 6: Validate PIN ───────────────────────────────────────────────────
   const handleValidatePin = async () => {
     if (!pin.trim()) { setError("Please enter your PIN."); return; }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/portal/validate-pin`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            schoolId: selectedSchool.id,
-            studentId: selectedStudent.id,
-            term,
-            academicYear,
-            pin: pin.trim(),
-          }),
-        },
-      );
+      const res = await fetch(`${API}/portal/validate-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: selectedSchool.id,
+          studentId: selectedStudent.id,
+          term,
+          academicYear,
+          pin: pin.trim(),
+        }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Invalid PIN");
       setResult(data.result);
@@ -117,6 +107,7 @@ export const ParentPortal = () => {
 
   const reset = () => {
     setStep("school");
+    setSchoolCode("");
     setSelectedSchool(null);
     setSelectedClass(null);
     setSelectedStudent(null);
@@ -124,6 +115,9 @@ export const ParentPortal = () => {
     setResult(null);
     setError(null);
   };
+
+  const STEPS: Step[] = ["school", "class", "student", "confirm", "term", "pin", "result"];
+  const stepIndex = STEPS.indexOf(step);
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
@@ -144,14 +138,12 @@ export const ParentPortal = () => {
         <div className="w-full max-w-lg">
           {/* Progress dots */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            {(["school","class","student","confirm","term","pin","result"] as Step[]).map((s, i) => (
+            {STEPS.map((s, i) => (
               <div
                 key={s}
                 className={`rounded-full transition-all ${
                   s === step ? "w-6 h-2 bg-primary" :
-                  (["school","class","student","confirm","term","pin","result"] as Step[]).indexOf(s) <
-                  (["school","class","student","confirm","term","pin","result"] as Step[]).indexOf(step)
-                    ? "w-2 h-2 bg-primary/40" : "w-2 h-2 bg-outline-variant/30"
+                  i < stepIndex ? "w-2 h-2 bg-primary/40" : "w-2 h-2 bg-outline-variant/30"
                 }`}
               />
             ))}
@@ -171,26 +163,36 @@ export const ParentPortal = () => {
             </div>
           )}
 
-          {/* STEP 1: Select school */}
+          {/* STEP 1: Enter school code */}
           {step === "school" && !loading && (
             <div className="ledger-card p-6">
-              <h2 className="font-headline font-bold text-lg text-on-surface mb-1">Select your child's school</h2>
-              <p className="text-sm text-on-surface-variant mb-5">Choose from the list of registered schools below</p>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {schools.length === 0 && (
-                  <p className="text-sm text-on-surface-variant text-center py-8">No schools found.</p>
-                )}
-                {schools.map((school) => (
-                  <button
-                    key={school.id}
-                    onClick={() => loadClasses(school)}
-                    className="w-full text-left p-4 rounded-xl border border-outline-variant/20 hover:border-primary/40 hover:bg-primary/5 transition-all"
-                  >
-                    <p className="font-bold text-on-surface text-sm">{school.name}</p>
-                    {school.address && <p className="text-xs text-on-surface-variant mt-0.5">{school.address}</p>}
-                  </button>
-                ))}
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mx-auto mb-5">
+                <Icon name="school" className="text-primary text-2xl" />
               </div>
+              <h2 className="font-headline font-bold text-lg text-on-surface mb-1 text-center">
+                Enter your school code
+              </h2>
+              <p className="text-sm text-on-surface-variant mb-6 text-center">
+                Your school's unique portal code — ask your school's principal if you don't have it.
+              </p>
+              <input
+                type="text"
+                value={schoolCode}
+                onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === "Enter") handleLookupSchool(); }}
+                placeholder="e.g. GRNFLD"
+                maxLength={8}
+                className="input-inset text-center font-mono text-2xl tracking-[0.3em] uppercase mb-4"
+                autoComplete="off"
+                autoCapitalize="characters"
+              />
+              <button
+                onClick={handleLookupSchool}
+                disabled={!schoolCode.trim()}
+                className="w-full btn-primary text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Icon name="search" className="text-base" /> Find School
+              </button>
             </div>
           )}
 
@@ -371,7 +373,7 @@ export const ParentPortal = () => {
             </div>
           )}
 
-          {/* STEP 7: Show result summary */}
+          {/* STEP 7: Result */}
           {step === "result" && result && (
             <div className="ledger-card p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -384,7 +386,6 @@ export const ParentPortal = () => {
                 </div>
               </div>
 
-              {/* Summary card */}
               <div className="bg-primary/5 rounded-xl p-4 mb-4 grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-2xl font-black text-primary">{result.percentage?.toFixed(1)}%</p>
@@ -400,7 +401,6 @@ export const ParentPortal = () => {
                 </div>
               </div>
 
-              {/* Scores table */}
               <div className="rounded-xl border border-outline-variant/20 overflow-hidden mb-4">
                 <div className="px-4 py-2 bg-surface-container-low">
                   <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Subject Scores</p>
@@ -418,7 +418,6 @@ export const ParentPortal = () => {
                 </div>
               </div>
 
-              {/* Comments */}
               {result.comment?.teacherComment && (
                 <div className="p-4 bg-surface-container-low rounded-xl mb-3">
                   <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1">Teacher's Comment</p>
@@ -432,11 +431,9 @@ export const ParentPortal = () => {
                 </div>
               )}
 
-              <div className="flex gap-3">
-                <button onClick={reset} className="flex-1 btn-ghost text-sm">
-                  <Icon name="home" className="text-base" /> Back to start
-                </button>
-              </div>
+              <button onClick={reset} className="w-full btn-ghost text-sm">
+                <Icon name="home" className="text-base" /> Back to start
+              </button>
             </div>
           )}
         </div>

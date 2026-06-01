@@ -542,6 +542,38 @@ export const SettingsPage = () => {
           </button>
         </div>
         {/* Danger Zone */}
+        {/* ── Parent Portal Code ── */}
+        <div className="ledger-card p-6">
+          <h3 className="font-headline font-bold text-lg text-primary mb-1 flex items-center gap-2">
+            <Icon name="qr_code" /> Parent Portal Code
+          </h3>
+          <p className="text-sm text-on-surface-variant mb-5">
+            Share this code with parents so they can find your school on the Skora parent portal. Keep it within your school community.
+          </p>
+          {school?.portalCode ? (
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex-1 min-w-0 bg-surface-container-low rounded-xl px-6 py-4 flex items-center justify-between gap-4">
+                <span className="font-mono font-extrabold text-3xl tracking-[0.3em] text-primary select-all">
+                  {school.portalCode}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(school.portalCode);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors flex-shrink-0"
+                >
+                  <Icon name="content_copy" className="text-sm" /> Copy
+                </button>
+              </div>
+              <p className="w-full text-xs text-on-surface-variant">
+                Parents go to the portal, type this code, and select their child's class and name. They then enter their scratch card PIN to view the result.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-on-surface-variant italic">Portal code not yet assigned. Contact Skora support.</p>
+          )}
+        </div>
+
         {/* ── Result Access Cards ── */}
         <div className="ledger-card p-6">
           <h3 className="font-headline font-bold text-lg text-primary mb-1 flex items-center gap-2">

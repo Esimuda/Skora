@@ -47,6 +47,11 @@ export class School {
   @Column({ nullable: true })
   currentAcademicYear!: string;
 
+  // Short code parents use to find this school on the portal.
+  // Auto-generated on creation. Unique across all schools.
+  @Column({ nullable: true, unique: true })
+  portalCode!: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 

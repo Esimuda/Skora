@@ -37,10 +37,20 @@ export class PortalController {
     private pinBatches: PinBatchesService,
   ) {}
 
-  // Public — list all schools for the school selector dropdown
-  @Get('schools')
-  getAllSchools() {
-    return this.schools.findAll();
+  // Public — look up a single school by its portal code.
+  // Returns only name, address, id — no sensitive data.
+  // Parents type their school's code (e.g. "GRNFLD") to find their school.
+  @Get('schools/lookup')
+  async lookupSchool(@Query('code') code: string) {
+    if (!code?.trim()) throw new BadRequestException('School code is required.');
+    const school = await this.schools.findByPortalCode(code);
+    // Return only what the portal needs — don't expose full school record
+    return {
+      id: school.id,
+      name: school.name,
+      address: school.address,
+      logo: school.logo,
+    };
   }
 
   // Public — list classes for a school
@@ -101,7 +111,6 @@ export class PortalController {
       throw new BadRequestException(result.reason ?? 'Invalid PIN');
     }
 
-    // Return the full computed result for this student
     const allResults = await this.results.getComputedResults(
       dto.schoolId,
       student.classId,
