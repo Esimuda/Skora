@@ -35,21 +35,26 @@ export const AdminPayoutsPage = () => {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     Promise.all([
       api.get<Payout[]>('/admin/payouts'),
       api.get<School[]>('/schools'),
     ])
       .then(([p, s]) => { setPayouts(p); setSchools(s); })
-      .catch(() => {})
+      .catch(() => setError('Failed to load payouts. Check your connection and try again.'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(
     () =>
@@ -115,6 +120,20 @@ export const AdminPayoutsPage = () => {
           </button>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="ledger-card p-4 border-l-4 border-error flex items-center gap-3">
+            <Icon name="error" className="text-error text-base flex-shrink-0" />
+            <p className="text-sm text-on-surface flex-1">{error}</p>
+            <button
+              onClick={load}
+              className="px-3 py-1.5 rounded-lg bg-error text-on-error text-sm font-semibold hover:bg-error/90 transition-colors flex-shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Summary */}
         <div className="grid grid-cols-2 gap-3">
           <div className="ledger-card p-4">
@@ -174,7 +193,7 @@ export const AdminPayoutsPage = () => {
                 <div key={i} className="h-14 rounded-lg bg-surface-container-highest animate-pulse" />
               ))}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && !error ? (
             <div className="p-16 text-center text-on-surface-variant">
               <Icon name="account_balance" className="text-4xl mb-2 opacity-30" />
               <p className="text-sm">No payouts recorded yet</p>

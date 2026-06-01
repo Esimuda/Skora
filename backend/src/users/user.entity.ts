@@ -9,36 +9,36 @@ import {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   @Column({ select: false })
-  password: string;
+  password!: string;
 
   @Column()
-  firstName: string;
+  firstName!: string;
 
   @Column()
-  lastName: string;
+  lastName!: string;
 
   @Column({ default: 'teacher' })
-  role: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
+  role!: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
   @Column({ nullable: true })
-  schoolId: string;
+  schoolId!: string;
 
   // Password reset — token is a random hex string, stored hashed
   @Column({ nullable: true, select: false })
-  passwordResetToken: string;
+  passwordResetToken!: string;
 
   @Column({ nullable: true })
-  passwordResetExpiry: Date;
+  passwordResetExpiry!: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

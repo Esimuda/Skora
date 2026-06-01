@@ -19,16 +19,21 @@ interface RevenueRow {
 export const AdminRevenuePage = () => {
   const [rows, setRows] = useState<RevenueRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<keyof RevenueRow>('totalRevenue');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     api.get<RevenueRow[]>('/admin/revenue')
       .then(setRows)
-      .catch(() => {})
+      .catch(() => setError('Failed to load revenue data. Check your connection and try again.'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
     let data = rows.filter(
@@ -128,6 +133,20 @@ export const AdminRevenuePage = () => {
           </button>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="ledger-card p-4 border-l-4 border-error flex items-center gap-3">
+            <Icon name="error" className="text-error text-base flex-shrink-0" />
+            <p className="text-sm text-on-surface flex-1">{error}</p>
+            <button
+              onClick={load}
+              className="px-3 py-1.5 rounded-lg bg-error text-on-error text-sm font-semibold hover:bg-error/90 transition-colors flex-shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
@@ -178,7 +197,7 @@ export const AdminRevenuePage = () => {
                 <div key={i} className="h-12 rounded-lg bg-surface-container-highest animate-pulse" />
               ))}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && !error ? (
             <div className="p-16 text-center text-on-surface-variant">
               <Icon name="payments" className="text-4xl mb-2 opacity-30" />
               <p className="text-sm">No revenue data yet</p>

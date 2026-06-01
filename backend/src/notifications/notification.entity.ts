@@ -5,48 +5,48 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 
 @Index(['schoolId', 'isRead'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  fromUserId: string;
+  fromUserId!: string;
 
   @Column()
-  fromUserName: string;
+  fromUserName!: string;
 
   @Column()
-  toUserRole: 'admin' | 'school_admin' | 'teacher';
+  toUserRole!: 'admin' | 'school_admin' | 'teacher';
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  type: 'result_submitted' | 'result_approved' | 'result_rejected' | 'general';
+  type!: 'result_submitted' | 'result_approved' | 'result_rejected' | 'general';
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  message: string;
+  message!: string;
 
   @Column({ nullable: true })
-  classId: string;
+  classId!: string;
 
   @Column({ nullable: true })
-  className: string;
+  className!: string;
 
   @Column({ nullable: true })
-  term: string;
+  term!: string;
 
   @Column({ nullable: true })
-  academicYear: string;
+  academicYear!: string;
 
   // Frontend route the user should be taken to when they click this notification
   @Column({ nullable: true })
-  actionUrl: string;
+  actionUrl!: string;
 
   @Column({ default: false })
-  isRead: boolean;
+  isRead!: boolean;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }

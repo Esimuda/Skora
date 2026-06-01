@@ -37,6 +37,7 @@ const daysSince = (dateStr: string) => {
 export const AdminBatchesPage = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('pending_payment');
   const [activatingBatch, setActivatingBatch] = useState<Batch | null>(null);
   const [paymentRef, setPaymentRef] = useState('');
@@ -44,12 +45,16 @@ export const AdminBatchesPage = () => {
   const [activating, setActivating] = useState(false);
   const [activateError, setActivateError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     api.get<Batch[]>('/admin/batches')
       .then(setBatches)
-      .catch(() => {})
+      .catch(() => setError('Failed to load batches. Check your connection and try again.'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(
     () => (!statusFilter ? batches : batches.filter((b) => b.status === statusFilter)),
@@ -132,6 +137,20 @@ export const AdminBatchesPage = () => {
           )}
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="ledger-card p-4 border-l-4 border-error flex items-center gap-3">
+            <Icon name="error" className="text-error text-base flex-shrink-0" />
+            <p className="text-sm text-on-surface flex-1">{error}</p>
+            <button
+              onClick={load}
+              className="px-3 py-1.5 rounded-lg bg-error text-on-error text-sm font-semibold hover:bg-error/90 transition-colors flex-shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Status filter tabs */}
         <div className="flex gap-2 flex-wrap">
           {[
@@ -167,7 +186,7 @@ export const AdminBatchesPage = () => {
                 <div key={i} className="h-16 rounded-lg bg-surface-container-highest animate-pulse" />
               ))}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && !error ? (
             <div className="p-16 text-center text-on-surface-variant">
               <Icon name="style" className="text-4xl mb-2 opacity-30" />
               <p className="text-sm">No batches in this category</p>

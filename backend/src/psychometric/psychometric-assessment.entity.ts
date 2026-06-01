@@ -6,29 +6,29 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 @Index(['schoolId', 'term'])
 export class PsychometricAssessment {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  studentId: string;
+  studentId!: string;
 
   @Column()
-  classId: string;
+  classId!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  term: 'first' | 'second' | 'third';
+  term!: 'first' | 'second' | 'third';
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   @Column({ type: 'jsonb' })
-  ratings: Record<string, number>;
+  ratings!: Record<string, number>;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

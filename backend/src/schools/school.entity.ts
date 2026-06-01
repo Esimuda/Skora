@@ -3,53 +3,53 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 @Entity('schools')
 export class School {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column()
-  address: string;
+  address!: string;
 
   @Column()
-  email: string;
+  email!: string;
 
   @Column()
-  phoneNumber: string;
+  phoneNumber!: string;
 
   @Column({ nullable: true })
-  motto: string;
+  motto!: string;
 
   @Column({ nullable: true, type: 'text' })
-  logo: string;
+  logo!: string;
 
   @Column({ nullable: true })
-  principalName: string;
+  principalName!: string;
 
   @Column({ nullable: true })
-  website: string;
+  website!: string;
 
   @Column({ nullable: true })
-  state: string;
+  state!: string;
 
   @Column({ nullable: true })
-  lga: string;
+  lga!: string;
 
   @Column({ nullable: true, default: 'public' })
-  schoolType: 'public' | 'private' | 'mission';
+  schoolType!: 'public' | 'private' | 'mission';
 
   @Column({ default: 'classic' })
-  templateId: 'classic' | 'modern' | 'hybrid';
+  templateId!: 'classic' | 'modern' | 'hybrid';
 
   @Column({ nullable: true })
-  currentTerm: 'first' | 'second' | 'third';
+  currentTerm!: 'first' | 'second' | 'third';
 
   @Column({ nullable: true })
-  currentAcademicYear: string;
+  currentAcademicYear!: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

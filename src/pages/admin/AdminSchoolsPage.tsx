@@ -18,17 +18,22 @@ const NIGERIAN_STATES = [
 export const AdminSchoolsPage = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     api.get<School[]>('/schools')
       .then(setSchools)
-      .catch(() => {})
+      .catch(() => setError('Failed to load schools. Check your connection and try again.'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
     return schools.filter((s) => {
@@ -68,6 +73,20 @@ export const AdminSchoolsPage = () => {
             {loading ? '…' : `${schools.length} registered school${schools.length !== 1 ? 's' : ''}`}
           </p>
         </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="ledger-card p-4 border-l-4 border-error flex items-center gap-3">
+            <Icon name="error" className="text-error text-base flex-shrink-0" />
+            <p className="text-sm text-on-surface flex-1">{error}</p>
+            <button
+              onClick={load}
+              className="px-3 py-1.5 rounded-lg bg-error text-on-error text-sm font-semibold hover:bg-error/90 transition-colors flex-shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="ledger-card p-4 flex flex-wrap gap-3">
@@ -129,7 +148,7 @@ export const AdminSchoolsPage = () => {
                 <div key={i} className="h-12 rounded-lg bg-surface-container-highest animate-pulse" />
               ))}
             </div>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && !error ? (
             <div className="p-16 text-center text-on-surface-variant">
               <Icon name="apartment" className="text-4xl mb-2 opacity-30" />
               <p className="text-sm">No schools match your filters</p>

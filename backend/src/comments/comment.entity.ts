@@ -6,32 +6,32 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 @Index(['schoolId'])
 export class ResultComment {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  studentId: string;
+  studentId!: string;
 
   @Column()
-  classId: string;
+  classId!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  term: 'first' | 'second' | 'third';
+  term!: 'first' | 'second' | 'third';
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   @Column({ type: 'text', nullable: true })
-  teacherComment: string;
+  teacherComment!: string;
 
   @Column({ type: 'text', nullable: true })
-  principalComment: string;
+  principalComment!: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
