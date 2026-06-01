@@ -11,34 +11,34 @@ import {
 @Index(['schoolId', 'studentId'])
 export class PinUse {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  pinId: string;
+  pinId!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  studentId: string;
+  studentId!: string;
 
   // Denormalised for easy audit log display without joins
   @Column()
-  studentName: string;
+  studentName!: string;
 
   @Column()
-  admissionNumber: string;
+  admissionNumber!: string;
 
   @Column()
-  term: string;
+  term!: string;
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   // IP address for rate limiting and fraud detection
   @Column({ nullable: true })
-  ipAddress: string;
+  ipAddress!: string;
 
   @CreateDateColumn()
-  usedAt: Date;
+  usedAt!: Date;
 }

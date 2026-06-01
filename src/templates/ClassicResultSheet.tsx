@@ -9,12 +9,14 @@ interface Props {
   result: StudentResult;
   school: School;
   gradingScale?: GradingScale[];
+  watermarked?: boolean;
 }
 
 export const ClassicResultSheet: React.FC<Props> = ({
   result,
   school,
   gradingScale = DEFAULT_NIGERIAN_GRADING.map((g, i) => ({ ...g, id: `${i}`, schoolId: school.id })),
+  watermarked = false,
 }) => {
   const {
     student, scores, psychometricAssessment, comment,
@@ -333,6 +335,35 @@ export const ClassicResultSheet: React.FC<Props> = ({
         </div>
 
       </div>{/* end zIndex wrapper */}
+
+      {/* ── UNOFFICIAL COPY overlays (only when watermarked=true) ── */}
+      {watermarked && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 10, overflow: 'hidden' }}>
+          {[
+            { top: '15%', left: '50%', rotate: '-35deg' },
+            { top: '35%', left: '20%', rotate: '-35deg' },
+            { top: '35%', left: '80%', rotate: '-35deg' },
+            { top: '60%', left: '50%', rotate: '-35deg' },
+            { top: '80%', left: '30%', rotate: '-35deg' },
+          ].map((pos, i) => (
+            <div key={i} style={{
+              position: 'absolute',
+              top: pos.top,
+              left: pos.left,
+              transform: `translate(-50%, -50%) rotate(${pos.rotate})`,
+              fontSize: '38px',
+              fontWeight: 900,
+              color: 'rgba(180,0,0,0.13)',
+              letterSpacing: '4px',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+              fontFamily: "'Inter', sans-serif",
+            }}>
+              UNOFFICIAL COPY
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

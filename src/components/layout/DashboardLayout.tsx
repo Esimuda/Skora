@@ -196,11 +196,20 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { to: '/principal/settings',   label: 'Settings',   icon: 'settings' },
   ];
 
-  const navLinks = user?.role === 'teacher' ? teacherLinks : principalLinks;
+  const adminLinks = [
+    { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/admin/schools',   label: 'Schools',   icon: 'apartment' },
+    { to: '/admin/batches',   label: 'Batches',   icon: 'style' },
+    { to: '/admin/revenue',   label: 'Revenue',   icon: 'payments' },
+    { to: '/admin/payouts',   label: 'Payouts',   icon: 'account_balance' },
+  ];
+
+  const isAdmin = user?.role === 'super_admin';
+  const navLinks = user?.role === 'teacher' ? teacherLinks : isAdmin ? adminLinks : principalLinks;
   const isTeacher = user?.role === 'teacher';
   const userInitial = (user?.firstName?.[0] ?? 'U').toUpperCase();
   const userName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
-  const userRole = isTeacher ? 'Class Teacher' : 'School Principal';
+  const userRole = isTeacher ? 'Class Teacher' : isAdmin ? 'Platform Administrator' : 'School Principal';
 
   const teacherMobileLinks = [
     { to: '/teacher/dashboard',  label: 'Home',     icon: 'dashboard' },
@@ -208,13 +217,19 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { to: '/teacher/scores',     label: 'Scores',   icon: 'edit_note' },
     { to: '/teacher/submit',     label: 'Submit',   icon: 'send' },
   ];
+  const adminMobileLinks = [
+    { to: '/admin/dashboard', label: 'Home',    icon: 'dashboard' },
+    { to: '/admin/schools',   label: 'Schools', icon: 'apartment' },
+    { to: '/admin/batches',   label: 'Batches', icon: 'style' },
+    { to: '/admin/revenue',   label: 'Revenue', icon: 'payments' },
+  ];
   const principalMobileLinks = [
     { to: '/principal/dashboard', label: 'Home',      icon: 'dashboard' },
     { to: '/principal/approvals', label: 'Approvals', icon: 'verified', badge: notifCount },
     { to: '/principal/downloads', label: 'Downloads', icon: 'download' },
     { to: '/principal/settings',  label: 'Settings',  icon: 'settings' },
   ];
-  const mobileLinks = isTeacher ? teacherMobileLinks : principalMobileLinks;
+  const mobileLinks = isTeacher ? teacherMobileLinks : isAdmin ? adminMobileLinks : principalMobileLinks;
 
   const isLinkActive = (to: string) =>
     location.pathname === to ||

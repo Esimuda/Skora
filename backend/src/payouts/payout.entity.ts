@@ -10,38 +10,38 @@ import {
 @Index(['schoolId'])
 export class Payout {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   // Denormalised for easy admin display without joins
   @Column()
-  schoolName: string;
+  schoolName!: string;
 
   @Column()
-  amount: number;
+  amount!: number;
 
   @Column({ nullable: true })
-  bankName: string;
+  bankName!: string;
 
   @Column({ nullable: true })
-  accountNumber: string;
+  accountNumber!: string;
 
   @Column({ nullable: true })
-  accountName: string;
+  accountName!: string;
 
   // Bank transfer reference — proof of payment
   @Column()
-  reference: string;
+  reference!: string;
 
   @Column({ nullable: true, type: 'text' })
-  notes: string;
+  notes!: string;
 
   // Super admin user ID who recorded this payout
   @Column()
-  processedBy: string;
+  processedBy!: string;
 
   @CreateDateColumn()
-  processedAt: Date;
+  processedAt!: Date;
 }

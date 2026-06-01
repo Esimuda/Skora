@@ -19,11 +19,11 @@ import { PinBatchesService } from '../pin-batches/pin-batches.service';
 import { IsNotEmpty, IsString } from 'class-validator';
 
 class ValidatePinDto {
-  @IsString() @IsNotEmpty() schoolId: string;
-  @IsString() @IsNotEmpty() studentId: string;
-  @IsString() @IsNotEmpty() term: string;
-  @IsString() @IsNotEmpty() academicYear: string;
-  @IsString() @IsNotEmpty() pin: string;
+  @IsString() @IsNotEmpty() schoolId!: string;
+  @IsString() @IsNotEmpty() studentId!: string;
+  @IsString() @IsNotEmpty() term!: string;
+  @IsString() @IsNotEmpty() academicYear!: string;
+  @IsString() @IsNotEmpty() pin!: string;
 }
 
 @ApiTags('Portal')

@@ -11,39 +11,39 @@ import {
 @Index(['batchId'])
 export class ResultPin {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  batchId: string;
+  batchId!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   // PIN stored as bcrypt hash — never stored plain after generation
   @Column({ select: false })
-  pin: string;
+  pin!: string;
 
   // Plain PIN stored temporarily for PDF card generation only.
   // Cleared to null immediately after the school downloads the cards PDF.
   @Column({ nullable: true, select: false })
-  pinDisplay: string;
+  pinDisplay!: string;
 
   @Column({ default: 5 })
-  usesRemaining: number;
+  usesRemaining!: number;
 
   @Column({ default: 5 })
-  usesTotal: number;
+  usesTotal!: number;
 
   @Column()
-  term: string;
+  term!: string;
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   // False until the batch is activated by super admin
   @Column({ default: false })
-  isActive: boolean;
+  isActive!: boolean;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }

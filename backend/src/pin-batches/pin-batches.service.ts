@@ -182,8 +182,7 @@ export class PinBatchesService {
 
   // ── Super Admin: revenue breakdown per school ─────────────────────────────
 
-  async getRevenueBreakdown(): Promise
-    {
+  async getRevenueBreakdown(): Promise<{
       schoolId: string;
       schoolName: string;
       batchesCount: number;
@@ -191,8 +190,7 @@ export class PinBatchesService {
       totalPinsUsed: number;
       totalRevenue: number;
       lastBatchDate: string;
-    }[]
-  > {
+    }[]> {
     const batches = await this.batchRepo.find({
       where: { status: 'active' },
       order: { requestedAt: 'DESC' },

@@ -149,7 +149,7 @@ export const ParentPortal = () => {
                 key={s}
                 className={`rounded-full transition-all ${
                   s === step ? "w-6 h-2 bg-primary" :
-                  (["school","class","student","confirm","term","pin","result"] as Step[]).indexOf(s) 
+                  (["school","class","student","confirm","term","pin","result"] as Step[]).indexOf(s) <
                   (["school","class","student","confirm","term","pin","result"] as Step[]).indexOf(step)
                     ? "w-2 h-2 bg-primary/40" : "w-2 h-2 bg-outline-variant/30"
                 }`}

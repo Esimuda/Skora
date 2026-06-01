@@ -96,6 +96,7 @@ export interface Student {
   dateOfBirth?: string;
   gender: 'male' | 'female';
   passportPhoto?: string;
+  photoUrl?: string;
   parentName?: string;
   parentPhone?: string;
   parentEmail?: string;

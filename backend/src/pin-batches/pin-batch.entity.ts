@@ -8,59 +8,59 @@ import {
 @Entity('pin_batches')
 export class PinBatch {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   // Denormalised for easy admin display without joins
   @Column()
-  schoolName: string;
+  schoolName!: string;
 
   @Column({ nullable: true })
-  principalName: string;
+  principalName!: string;
 
   @Column({ nullable: true })
-  principalEmail: string;
+  principalEmail!: string;
 
   @Column()
-  quantity: number;
+  quantity!: number;
 
   @Column({ default: 5 })
-  usesPerPin: number;
+  usesPerPin!: number;
 
   @Column({ default: 1000 })
-  unitPrice: number;
+  unitPrice!: number;
 
   @Column()
-  totalAmount: number;
+  totalAmount!: number;
 
   @Column({
     type: 'enum',
     enum: ['pending_payment', 'active', 'exhausted'],
     default: 'pending_payment',
   })
-  status: 'pending_payment' | 'active' | 'exhausted';
+  status!: 'pending_payment' | 'active' | 'exhausted';
 
   @Column()
-  term: string;
+  term!: string;
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   // Filled by super admin when activating
   @Column({ nullable: true })
-  paymentReference: string;
+  paymentReference!: string;
 
   @Column({ nullable: true, type: 'text' })
-  notes: string;
+  notes!: string;
 
   @Column({ nullable: true })
-  activatedAt: Date;
+  activatedAt!: Date;
 
   @Column({ nullable: true })
-  activatedBy: string;
+  activatedBy!: string;
 
   @CreateDateColumn()
-  requestedAt: Date;
+  requestedAt!: Date;
 }

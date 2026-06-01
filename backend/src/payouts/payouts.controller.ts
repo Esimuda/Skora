@@ -8,12 +8,12 @@ import { PayoutsService } from './payouts.service';
 import { IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 class CreatePayoutDto {
-  @IsUUID() schoolId: string;
-  @IsNumber() @Min(1) amount: number;
+  @IsUUID() schoolId!: string;
+  @IsNumber() @Min(1) amount!: number;
   @IsString() @IsOptional() bankName?: string;
   @IsString() @IsOptional() accountNumber?: string;
   @IsString() @IsOptional() accountName?: string;
-  @IsString() @IsNotEmpty() reference: string;
+  @IsString() @IsNotEmpty() reference!: string;
   @IsString() @IsOptional() notes?: string;
 }
 
