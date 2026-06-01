@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -27,11 +27,9 @@ export class AdminController {
       this.batches.getSummary(),
     ]);
 
-    const activeSchools = allSchools.filter((s: any) => s.createdAt);
-
     return {
       totalSchools: allSchools.length,
-      activeSchools: activeSchools.length,
+      activeSchools: allSchools.length,
       pendingBatches: batchSummary.pending,
       totalPinsIssued: batchSummary.totalPinsIssued,
       totalPinsUsed: batchSummary.totalPinsUsed,
@@ -47,13 +45,8 @@ export class AdminController {
       this.batches.findAll(),
     ]);
 
-    const activity: {
-      type: string;
-      message: string;
-      date: Date;
-    }[] = [];
+    const activity: { type: string; message: string; date: Date }[] = [];
 
-    // New school registrations
     for (const school of (schools as any[]).slice(0, 10)) {
       activity.push({
         type: 'school_registered',
@@ -62,7 +55,6 @@ export class AdminController {
       });
     }
 
-    // Batch events
     for (const batch of (batches as any[]).slice(0, 10)) {
       if (batch.status === 'pending_payment') {
         activity.push({
@@ -79,10 +71,19 @@ export class AdminController {
       }
     }
 
-    // Sort by date descending, return last 20
     return activity
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 20);
+  }
+
+  // Single school detail — profile + stats + full batch history
+  @Get('schools/:schoolId')
+  async getSchoolDetail(@Param('schoolId') schoolId: string) {
+    const [school, batches] = await Promise.all([
+      this.schools.findOneWithStats(schoolId),
+      this.batches.findBySchool(schoolId),
+    ]);
+    return { school, batches };
   }
 
   @Get('batches')
