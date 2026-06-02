@@ -31,6 +31,7 @@ export interface School {
   state?: string;
   lga?: string;
   schoolType?: 'public' | 'private' | 'mission';
+  portalCode?: string;
   templateId: 'classic' | 'modern' | 'hybrid';
   createdAt: string;
   updatedAt: string;
