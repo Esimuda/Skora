@@ -14,10 +14,61 @@ export class SchoolsService {
     private users: UsersService,
   ) {}
 
+  // Generates a short unique portal code from the school name.
+  // e.g. "Greenfield Academy" → "GRNFLD", with numeric suffix on collision.
+  private async generatePortalCode(schoolName: string): Promise<string> {
+    // Take consonants-first up to 6 chars, uppercased
+    const base = schoolName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 6)
+      .padEnd(6, 'X');
+
+    // Try base code first, then base + 2-digit suffix
+    const candidates = [base, ...Array.from({ length: 99 }, (_, i) => `${base.slice(0, 4)}${String(i + 1).padStart(2, '0')}`)];
+
+    for (const code of candidates) {
+      const existing = await this.repo.findOne({ where: { portalCode: code } });
+      if (!existing) return code;
+    }
+
+    // Fallback: random 6-char alphanumeric
+    return Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
   async create(dto: CreateSchoolDto, principalId: string) {
-    const school = await this.repo.save(this.repo.create(dto));
+    const portalCode = await this.generatePortalCode(dto.name);
+    const school = await this.repo.save(this.repo.create({ ...dto, portalCode }));
     await this.users.updateSchool(principalId, school.id);
     return school;
+  }
+
+  // Returns all schools — used by super admin panel only
+  findAll() {
+    return this.repo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  // Looks up a school by its portal code — used by parent portal
+  async findByPortalCode(code: string): Promise<School> {
+    const school = await this.repo.findOne({
+      where: { portalCode: code.trim().toUpperCase() },
+    });
+    if (!school) throw new NotFoundException('No school found with that code. Please check and try again.');
+    return school;
+  }
+
+  // Returns school + counts for admin school detail page
+  async findOneWithStats(schoolId: string) {
+    const school = await this.repo.findOne({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException('School not found');
+
+    const [teacherCount, classCount, studentCount] = await Promise.all([
+      this.repo.manager.count('teachers', { where: { schoolId } } as any),
+      this.repo.manager.count('classes', { where: { schoolId } } as any),
+      this.repo.manager.count('students', { where: { schoolId } } as any),
+    ]);
+
+    return { ...school, stats: { teacherCount, classCount, studentCount } };
   }
 
   async findOne(id: string) {
@@ -34,7 +85,7 @@ export class SchoolsService {
 
   async remove(id: string, requestingUser: any) {
     this.assertSchoolAccess(id, requestingUser);
-    await this.findOne(id); // 404 if not found
+    await this.findOne(id);
     await this.dataSource.transaction(async (manager) => {
       const q = (table: string) =>
         manager.query(`DELETE FROM "${table}" WHERE "schoolId" = $1`, [id]);
@@ -56,7 +107,7 @@ export class SchoolsService {
   }
 
   assertSchoolAccess(schoolId: string, user: any) {
-    if (user.role === 'admin') return;
+    if (user.role === 'admin' || user.role === 'super_admin') return;
     if (user.schoolId !== schoolId) throw new ForbiddenException('Access denied');
   }
 }

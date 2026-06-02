@@ -6,59 +6,59 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 @Index(['schoolId', 'term', 'academicYear'])
 export class ClassResult {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  classId: string;
+  classId!: string;
 
   @Column()
-  className: string;
+  className!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  teacherId: string;
+  teacherId!: string;
 
   @Column()
-  teacherName: string;
+  teacherName!: string;
 
   @Column()
-  term: 'first' | 'second' | 'third';
+  term!: 'first' | 'second' | 'third';
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   @Column({ default: 'draft' })
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  status!: 'draft' | 'submitted' | 'approved' | 'rejected';
 
   @Column({ type: 'timestamp', nullable: true })
-  submittedAt: Date;
+  submittedAt!: Date;
 
   @Column({ nullable: true })
-  submittedBy: string;
+  submittedBy!: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  approvedAt: Date;
+  approvedAt!: Date;
 
   @Column({ nullable: true })
-  approvedBy: string;
+  approvedBy!: string;
 
   @Column({ type: 'text', nullable: true })
-  principalNote: string;
+  principalNote!: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  rejectedAt: Date | null;
+  rejectedAt!: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
-  rejectedBy: string | null;
+  rejectedBy!: string | null;
 
   @Column({ type: 'text', nullable: true })
-  rejectionReason: string | null;
+  rejectionReason!: string | null;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

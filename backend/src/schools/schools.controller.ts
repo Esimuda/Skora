@@ -21,6 +21,18 @@ export class SchoolsController {
     return this.service.create(dto, user.id);
   }
 
+  @Get()
+  @Roles('admin', 'super_admin')
+  findAll() {
+    return this.service.findAll();
+  }
+
+  @Get(':id/stats')
+  @Roles('admin', 'super_admin')
+  findOneWithStats(@Param('id') id: string) {
+    return this.service.findOneWithStats(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     this.service.assertSchoolAccess(id, user);

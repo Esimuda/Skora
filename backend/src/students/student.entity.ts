@@ -1,51 +1,55 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 @Entity('students')
-@Index(['classId'])    // student list per class — the hottest read path
+@Index(['classId'])
 @Index(['schoolId'])
 export class Student {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  classId: string;
+  classId!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  admissionNumber: string;
+  admissionNumber!: string;
 
   @Column()
-  firstName: string;
+  firstName!: string;
 
   @Column()
-  lastName: string;
+  lastName!: string;
 
   @Column({ nullable: true })
-  middleName: string;
+  middleName!: string;
 
   @Column({ nullable: true })
-  dateOfBirth: string;
+  dateOfBirth!: string;
 
   @Column()
-  gender: 'male' | 'female';
+  gender!: 'male' | 'female';
 
   @Column({ nullable: true })
-  parentName: string;
+  parentName!: string;
 
   @Column({ nullable: true })
-  parentPhone: string;
+  parentPhone!: string;
 
   @Column({ nullable: true })
-  parentEmail: string;
+  parentEmail!: string;
 
   @Column({ nullable: true })
-  address: string;
+  address!: string;
+
+  // Passport photo stored as base64 string (same pattern as school logo)
+  @Column({ nullable: true, type: 'text' })
+  photoUrl!: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

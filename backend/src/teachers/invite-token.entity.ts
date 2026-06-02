@@ -3,23 +3,23 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeor
 @Entity('invite_tokens')
 export class InviteToken {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  token: string;
+  token!: string;
 
   @Column()
-  email: string;
+  email!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column({ default: false })
-  used: boolean;
+  used!: boolean;
 
   @Column()
-  expiresAt: Date;
+  expiresAt!: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }

@@ -3,10 +3,8 @@ import ReactDOM from "react-dom/client";
 import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import { saveAs } from "file-saver";
-import JSZip from "jszip";
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -31,7 +29,6 @@ import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
 import { ModernResultSheet } from "@/templates/ModernResultSheet";
 import { HybridResultSheet } from "@/templates/HybridResultSheet";
 
-// Shape returned by GET /schools/:schoolId/results/:classId/computed
 interface ApiComputedResult {
   student: Student;
   scores: Score[];
@@ -47,10 +44,6 @@ interface ApiComputedResult {
   term: string;
   academicYear: string;
 }
-
-// ── Adapter ───────────────────────────────────────────────────────────────────
-// Converts the API computed result into the shape the template components expect.
-// The key transform: scores[].subjectId is a UUID from the DB — templates need the name.
 
 function toStudentResult(
   r: ApiComputedResult,
@@ -79,118 +72,81 @@ function toStudentResult(
   };
 }
 
-// ── Template-aware React component ────────────────────────────────────────────
-
 function TemplateResultSheet({
   result,
   school,
   subjects,
   term,
+  watermarked = false,
 }: {
   result: ApiComputedResult;
   school: School;
   subjects: Subject[];
   term: Term;
+  watermarked?: boolean;
 }) {
   const studentResult = toStudentResult(result, term, subjects);
-
   switch (school.templateId) {
     case "modern":
-      return <ModernResultSheet result={studentResult} school={school} />;
+      return <ModernResultSheet result={studentResult} school={school} watermarked={watermarked} />;
     case "hybrid":
-      return <HybridResultSheet result={studentResult} school={school} />;
+      return <HybridResultSheet result={studentResult} school={school} watermarked={watermarked} />;
     default:
-      return <ClassicResultSheet result={studentResult} school={school} />;
+      return <ClassicResultSheet result={studentResult} school={school} watermarked={watermarked} />;
   }
 }
 
-// ── HTML builder (new-tab print) ──────────────────────────────────────────────
-
-function buildResultHTML(
+// Generates a watermarked HTML page for preview in a new tab — no download
+function buildWatermarkedHTML(
   result: ApiComputedResult,
   school: School,
   subjects: Subject[],
   term: Term,
 ): string {
   const studentResult = toStudentResult(result, term, subjects);
-
   let markup: string;
   switch (school.templateId) {
     case "modern":
-      markup = renderToStaticMarkup(<ModernResultSheet result={studentResult} school={school} />);
+      markup = renderToStaticMarkup(
+        <ModernResultSheet result={studentResult} school={school} watermarked={true} />
+      );
       break;
     case "hybrid":
-      markup = renderToStaticMarkup(<HybridResultSheet result={studentResult} school={school} />);
+      markup = renderToStaticMarkup(
+        <HybridResultSheet result={studentResult} school={school} watermarked={true} />
+      );
       break;
     default:
-      markup = renderToStaticMarkup(<ClassicResultSheet result={studentResult} school={school} />);
+      markup = renderToStaticMarkup(
+        <ClassicResultSheet result={studentResult} school={school} watermarked={true} />
+      );
   }
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Result — ${result.student.lastName} ${result.student.firstName}</title>
+  <title>Preview — ${result.student.lastName} ${result.student.firstName}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #f0f0f0; display: flex; justify-content: center; padding: 20px; }
+    body { background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; font-family: sans-serif; }
+    .notice { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 20px; margin-bottom: 16px; font-size: 13px; color: #92400e; max-width: 794px; width: 100%; text-align: center; }
+    .notice strong { display: block; font-size: 14px; margin-bottom: 4px; }
     @page { size: A4 portrait; margin: 0; }
-    @media print {
-      body { background: white; padding: 0; }
-    }
+    @media print { body { background: white; padding: 0; } .notice { display: none; } }
   </style>
 </head>
 <body>
+  <div class="notice">
+    <strong>⚠ Unofficial Preview Copy</strong>
+    Official result sheets are issued exclusively through the Skora Parent Portal.
+    Contact your school bursar to purchase a result access card.
+  </div>
   ${markup}
-  <script>window.onload = function() { window.print(); }</script>
 </body>
 </html>`;
 }
-
-// ── PDF generator ─────────────────────────────────────────────────────────────
-
-async function generateStudentPDF(
-  result: ApiComputedResult,
-  school: School,
-  subjects: Subject[],
-  term: Term,
-): Promise<Blob> {
-  const container = document.createElement("div");
-  container.style.cssText =
-    "position:absolute;left:-9999px;top:0;width:794px;background:white;";
-  document.body.appendChild(container);
-
-  const root = ReactDOM.createRoot(container);
-
-  flushSync(() => {
-    root.render(
-      <TemplateResultSheet result={result} school={school} subjects={subjects} term={term} />,
-    );
-  });
-
-  await new Promise((r) => setTimeout(r, 200));
-
-  const el = container.firstElementChild as HTMLElement;
-  const canvas = await html2canvas(el, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-    backgroundColor: "#ffffff",
-  });
-
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const imgData = canvas.toDataURL("image/jpeg", 0.92);
-  pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
-
-  root.unmount();
-  document.body.removeChild(container);
-
-  return pdf.output("blob");
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const formatPosition = (pos: number) => {
   const s = ["th", "st", "nd", "rd"];
@@ -198,7 +154,16 @@ const formatPosition = (pos: number) => {
   return pos + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
-// ── Main Downloads Page ───────────────────────────────────────────────────────
+const formatDate = (iso?: string) => {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-NG", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+};
+
+const Icon = ({ name, className = "" }: { name: string; className?: string }) => (
+  <span className={`material-symbols-outlined ${className}`}>{name}</span>
+);
 
 export const DownloadsPage = () => {
   const { user } = useAuthStore();
@@ -216,7 +181,6 @@ export const DownloadsPage = () => {
   const [selectedTerm, setSelectedTerm] = useState<Term>(initialTerm);
   const [selectedYear, setSelectedYear] = useState<string>(initialYear);
 
-  // Keep URL in sync so the principal can bookmark / share an archived view.
   useEffect(() => {
     setSearchParams(
       { term: selectedTerm, academicYear: selectedYear },
@@ -232,10 +196,9 @@ export const DownloadsPage = () => {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
-  const [zipping, setZipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
 
-  // Fetch school + classes once, then approved statuses whenever term/year change.
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
     setLoading(true);
@@ -251,11 +214,7 @@ export const DownloadsPage = () => {
         setSchool(schoolData);
         setClasses(classesData);
         setApprovedStatuses(statusesData);
-        // If the previously selected class isn't approved in this term, clear it.
-        if (
-          selectedClassId &&
-          !statusesData.some((s) => s.classId === selectedClassId)
-        ) {
+        if (selectedClassId && !statusesData.some((s) => s.classId === selectedClassId)) {
           setSelectedClassId("");
           setClassResults([]);
         }
@@ -264,7 +223,6 @@ export const DownloadsPage = () => {
       .finally(() => setLoading(false));
   }, [schoolId, selectedTerm, selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When a class is selected: fetch its computed results and subjects in parallel
   useEffect(() => {
     if (!selectedClassId || !schoolId) {
       setClassResults([]);
@@ -291,98 +249,34 @@ export const DownloadsPage = () => {
     selectedTerm !== getCurrentTerm() || selectedYear !== getCurrentAcademicYear();
 
   const selectedStatus = approvedStatuses.find((r) => r.classId === selectedClassId);
-  const getClassName = (classId: string) =>
-    classes.find((c) => c.id === classId)?.name ?? classId;
 
-  const openResultInNewTab = (result: ApiComputedResult) => {
+  // Preview a single student result in a new tab — watermarked
+  const handlePreview = (result: ApiComputedResult) => {
     if (!school) return;
-    const html = buildResultHTML(result, school, subjects, selectedTerm);
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+
+    // Gate: principal comment must exist before preview
+    if (!result.comment?.principalComment?.trim()) {
+      setError(
+        `Cannot preview — principal comment missing for ${result.student.lastName} ${result.student.firstName}. Go to Approvals to write comments first.`
+      );
+      return;
+    }
+
+    setPreviewingId(result.student.id);
+    try {
+      const html = buildWatermarkedHTML(result, school, subjects, selectedTerm);
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } finally {
+      setPreviewingId(null);
+    }
   };
 
-  // Gate: every student must have a principal comment before download is allowed.
-  const missingPrincipalComments = classResults.filter(
-    (r) => !r.comment?.principalComment?.trim(),
+  // Check all students have principal comments
+  const missingComments = classResults.filter(
+    (r) => !r.comment?.principalComment?.trim()
   );
-  const canDownload =
-    classResults.length > 0 && missingPrincipalComments.length === 0;
-
-  const handleDownloadZip = async () => {
-    if (!school || classResults.length === 0) return;
-
-    if (missingPrincipalComments.length > 0) {
-      const names = missingPrincipalComments
-        .map((r) => `${r.student.lastName} ${r.student.firstName}`)
-        .join(", ");
-      setError(
-        `Cannot download — principal comment missing for ${missingPrincipalComments.length} student${
-          missingPrincipalComments.length > 1 ? "s" : ""
-        }: ${names}. Go to Approvals to write comments first.`,
-      );
-      return;
-    }
-
-    setZipping(true);
-
-    // Strip path separators and other chars that are illegal in filenames on
-    // Windows/macOS. Critical: admission numbers like "SC/2024/045" would
-    // otherwise turn each "/" into a folder boundary inside the zip.
-    const safe = (s: string) =>
-      s.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, "_").trim() || "Unknown";
-
-    const zip = new JSZip();
-    const className = getClassName(selectedClassId);
-    const safeClassName = safe(className);
-
-    // Sort by class position so the serial-number prefix matches rank.
-    const ranked = [...classResults].sort((a, b) => a.position - b.position);
-    const padWidth = Math.max(2, String(ranked.length).length);
-
-    for (const result of ranked) {
-      const pdfBlob = await generateStudentPDF(result, school, subjects, selectedTerm);
-      const serial = String(result.position).padStart(padWidth, "0");
-      const lastName = safe(result.student.lastName).toUpperCase();
-      const firstName = safe(result.student.firstName);
-      // Flat: PDFs sit at the zip root, no per-student folders.
-      zip.file(`${serial}_${lastName}_${firstName}.pdf`, pdfBlob);
-    }
-
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    const termTag = selectedTerm === "first" ? "1st" : selectedTerm === "second" ? "2nd" : "3rd";
-    saveAs(
-      zipBlob,
-      `${safeClassName}_${termTag}-Term_${selectedYear.replace("/", "-")}.zip`,
-    );
-    setZipping(false);
-  };
-
-  const handlePrintAll = () => {
-    if (missingPrincipalComments.length > 0) {
-      const names = missingPrincipalComments
-        .map((r) => `${r.student.lastName} ${r.student.firstName}`)
-        .join(", ");
-      setError(
-        `Cannot print — principal comment missing for ${missingPrincipalComments.length} student${
-          missingPrincipalComments.length > 1 ? "s" : ""
-        }: ${names}. Go to Approvals to write comments first.`,
-      );
-      return;
-    }
-    classResults.forEach((result, idx) => {
-      setTimeout(() => openResultInNewTab(result), idx * 500);
-    });
-  };
-
-  const formatDate = (iso?: string) => {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("en-NG", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
 
   if (loading) {
     return (
@@ -396,85 +290,104 @@ export const DownloadsPage = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
+
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-on-surface">Downloads</h1>
-          <p className="text-on-surface-variant mt-1">
-            Print result sheets for approved classes using the{" "}
-            <span className="font-semibold capitalize text-primary">
-              {school?.templateId ?? "classic"}
-            </span>{" "}
-            template
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">
+              Result Previews
+            </h2>
+            <p className="text-on-surface-variant text-sm mt-1">
+              Preview watermarked copies of approved results. Parents collect official copies via scratch cards on the parent portal.
+            </p>
+          </div>
+          <Link
+            to="/principal/settings"
+            className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant/30 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors flex-shrink-0"
+          >
+            <Icon name="style" className="text-base" /> Manage Cards
+          </Link>
         </div>
 
-        {/* Term + Academic Year picker */}
-        <div className="mb-6">
-          <TermSelector
-            term={selectedTerm}
-            academicYear={selectedYear}
-            onTermChange={setSelectedTerm}
-            onAcademicYearChange={setSelectedYear}
-          />
-        </div>
+        {/* Term selector */}
+        <TermSelector
+          term={selectedTerm}
+          academicYear={selectedYear}
+          onTermChange={setSelectedTerm}
+          onAcademicYearChange={setSelectedYear}
+        />
 
         {isArchive && (
-          <div className="mb-6 ledger-card p-4 flex items-start gap-3 border-l-4 border-tertiary-fixed-dim">
-            <span className="material-symbols-outlined text-on-tertiary-container" style={{ fontSize: 20 }}>
-              history
-            </span>
+          <div className="ledger-card p-4 flex items-start gap-3 border-l-4 border-tertiary-fixed-dim">
+            <Icon name="history" className="text-on-tertiary-container flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-on-surface">Archived term — re-downloading past results</p>
+              <p className="font-bold text-on-surface">Archived term</p>
               <p className="text-on-surface-variant mt-0.5">
-                You're viewing approved results from a previous term. PDFs reflect the data captured at that time.
+                Viewing approved results from a previous term for record-keeping.
               </p>
             </div>
           </div>
         )}
 
-        {/* Error banner */}
-        {error && (
-          <div className="mb-6 bg-error-container border border-error/20 rounded-xl p-4 text-on-error-container text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Approval gate info */}
-        <div className="mb-6 bg-secondary-container/30 border border-secondary/20 rounded-xl p-4 flex items-center gap-3">
-          <span className="text-2xl">🔒</span>
-          <div>
-            <p className="font-semibold text-on-secondary-container">Approval-gated</p>
-            <p className="text-sm text-on-surface-variant">
-              Only classes you have approved appear here. Approve results on the
-              Approvals page first.
+        {/* How it works banner */}
+        <div className="ledger-card p-5 flex items-start gap-4 border-l-4 border-primary/40">
+          <Icon name="info" className="text-primary flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold text-on-surface mb-1">How result distribution works</p>
+            <p className="text-on-surface-variant">
+              Previews here are watermarked — for your records only. Official clean result sheets are accessed by parents through the{" "}
+              <strong>Skora Parent Portal</strong> using scratch cards purchased from your school.
             </p>
+            <Link
+              to="/principal/settings"
+              className="inline-flex items-center gap-1 mt-2 text-primary font-bold hover:underline text-xs"
+            >
+              <Icon name="style" className="text-sm" /> Request a scratch card batch →
+            </Link>
           </div>
         </div>
 
-        {/* No approved results yet */}
+        {error && (
+          <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm flex items-start gap-2">
+            <Icon name="warning" className="flex-shrink-0 mt-0.5 text-base" />
+            <div>
+              {error}
+              {error.includes('Approvals') && (
+                <Link to="/principal/approvals" className="block mt-1 font-bold underline">
+                  Go to Approvals →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* No approved results */}
         {approvedStatuses.length === 0 ? (
           <div className="ledger-card flex flex-col items-center justify-center py-20 text-on-surface-variant">
-            <div className="text-5xl mb-4">📭</div>
-            <p className="text-lg font-medium">
-              No approved results for this term
-            </p>
+            <Icon name="inbox" className="text-5xl text-outline/30 mb-4" />
+            <p className="font-headline font-bold text-lg">No approved results for this term</p>
             <p className="text-sm mt-1">
               {isArchive
                 ? "Nothing was approved for the selected term and academic year."
-                : "Approve results on the Approvals page to unlock downloads"}
+                : "Approve results on the Approvals page to view previews here"}
             </p>
+            {!isArchive && (
+              <Link to="/principal/approvals" className="mt-4 btn-primary text-sm flex items-center gap-2">
+                <Icon name="verified" className="text-base" /> Go to Approvals
+              </Link>
+            )}
           </div>
         ) : (
           <>
             {/* Class selector */}
-            <div className="ledger-card p-4 mb-6">
+            <div className="ledger-card p-5">
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
                 Select Approved Class
               </label>
               <select
                 value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
+                onChange={(e) => { setSelectedClassId(e.target.value); setError(null); }}
                 className="input-inset"
               >
                 <option value="">— Choose a class —</option>
@@ -486,74 +399,81 @@ export const DownloadsPage = () => {
               </select>
             </div>
 
-            {/* Selected class details */}
+            {/* Selected class */}
             {selectedStatus && selectedClassId && (
               <>
-                {/* Class info banner */}
-                <div className="ledger-card p-4 md:p-5 mb-6">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                {/* Class info */}
+                <div className="ledger-card p-5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                       <div className="flex items-center gap-3 mb-1 flex-wrap">
-                        <h2 className="text-xl font-bold text-on-surface">
+                        <h3 className="font-headline font-bold text-xl text-primary">
                           {selectedStatus.className}
-                        </h2>
-                        <span className="badge-validated">✅ Approved</span>
+                        </h3>
+                        <span className="badge-validated">Approved</span>
                       </div>
                       <p className="text-sm text-on-surface-variant">
                         {selectedTerm === "first" ? "1st" : selectedTerm === "second" ? "2nd" : "3rd"} Term · {selectedYear} ·{" "}
-                        {loadingResults ? "…" : classResults.length} students ·
-                        Teacher: {selectedStatus.teacherName}
+                        {loadingResults ? "…" : classResults.length} students · Teacher: {selectedStatus.teacherName}
                       </p>
                       <p className="text-xs text-on-surface-variant/60 mt-1">
-                        Approved on {formatDate(selectedStatus.approvedAt)}
+                        Approved {formatDate(selectedStatus.approvedAt)}
                       </p>
-                      {selectedStatus.principalNote && (
-                        <p className="text-sm text-on-secondary-container mt-1 italic">
-                          Your note: "{selectedStatus.principalNote}"
-                        </p>
-                      )}
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
-                      <button
-                        onClick={handlePrintAll}
-                        disabled={loadingResults || !canDownload}
-                        className="btn-ghost text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        <span className="material-symbols-outlined text-base">print</span>
-                        Print All
-                      </button>
-                      <button
-                        onClick={handleDownloadZip}
-                        disabled={loadingResults || !canDownload || zipping}
-                        className="btn-primary text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        {zipping ? (
-                          <>
-                            <span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-                            Generating PDFs…
-                          </>
-                        ) : (
-                          <>
-                            <span className="material-symbols-outlined text-base">picture_as_pdf</span>
-                            Download PDFs ({classResults.length})
-                          </>
-                        )}
-                      </button>
-                    </div>
+
+                    {/* Class summary download — aggregate only, no watermark needed */}
+                    <button
+                      disabled={loadingResults || classResults.length === 0}
+                      onClick={() => {
+                        // Generate a simple text summary for principal's records
+                        const lines = [
+                          `CLASS SUMMARY REPORT`,
+                          `${selectedStatus.className} — ${selectedTerm.toUpperCase()} TERM ${selectedYear}`,
+                          `Teacher: ${selectedStatus.teacherName}`,
+                          `Total Students: ${classResults.length}`,
+                          `Approved: ${formatDate(selectedStatus.approvedAt)}`,
+                          ``,
+                          `POSITION  NAME                          SCORE     %`,
+                          `${'─'.repeat(60)}`,
+                          ...classResults
+                            .sort((a, b) => a.position - b.position)
+                            .map((r) =>
+                              `${String(r.position).padStart(3, ' ')}.      ${`${r.student.lastName} ${r.student.firstName}`.padEnd(30, ' ')}  ${String(r.totalScore).padStart(5, ' ')}/${r.totalPossible}  ${r.percentage.toFixed(1)}%`
+                            ),
+                          ``,
+                          `Class Average: ${classResults.length > 0 ? (classResults.reduce((s, r) => s + r.percentage, 0) / classResults.length).toFixed(1) : 0}%`,
+                          `Class Highest: ${classResults.length > 0 ? Math.max(...classResults.map((r) => r.percentage)).toFixed(1) : 0}%`,
+                          ``,
+                          `Generated by Skora RMS`,
+                        ];
+                        const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${selectedStatus.className}-Summary-${selectedTerm}-${selectedYear.replace('/', '-')}.txt`;
+                        a.click();
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 border border-outline-variant/30 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors disabled:opacity-40"
+                    >
+                      <Icon name="summarize" className="text-base" /> Download Class Summary
+                    </button>
                   </div>
                 </div>
 
-                {/* Missing-comment gate banner */}
-                {!loadingResults && missingPrincipalComments.length > 0 && (
-                  <div className="mb-6 ledger-card p-4 flex items-start gap-3 border-l-4 border-error">
-                    <span className="material-symbols-outlined text-error mt-0.5">block</span>
+                {/* Missing comments warning */}
+                {!loadingResults && missingComments.length > 0 && (
+                  <div className="ledger-card p-4 flex items-start gap-3 border-l-4 border-error">
+                    <Icon name="warning" className="text-error flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
                       <p className="font-bold text-on-surface">
-                        Download locked — {missingPrincipalComments.length} student{missingPrincipalComments.length > 1 ? "s" : ""} still need{missingPrincipalComments.length > 1 ? "" : "s"} your comment
+                        {missingComments.length} student{missingComments.length > 1 ? 's' : ''} missing principal comment
                       </p>
                       <p className="text-on-surface-variant mt-0.5">
-                        Go to <span className="font-bold">Approvals</span> and write a per-student principal comment before you can print or download this class.
+                        You cannot preview result sheets until all students have your comment.
                       </p>
+                      <Link to="/principal/approvals" className="inline-flex items-center gap-1 mt-2 text-primary font-bold hover:underline text-xs">
+                        <Icon name="rate_review" className="text-sm" /> Write comments in Approvals →
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -565,122 +485,99 @@ export const DownloadsPage = () => {
                   </div>
                 ) : classResults.length === 0 ? (
                   <div className="ledger-card flex flex-col items-center justify-center py-16 text-on-surface-variant">
-                    <div className="text-4xl mb-3">👥</div>
+                    <Icon name="group" className="text-4xl text-outline/30 mb-3" />
                     <p>No student results found for this class</p>
                   </div>
                 ) : (
-                  <div className="ledger-card overflow-hidden mb-6">
-                    <div className="px-5 py-3 border-b border-outline-variant/15 bg-surface-container-low">
-                      <span className="text-sm font-semibold text-on-surface-variant">
+                  <div className="ledger-card overflow-hidden">
+                    <div className="px-5 py-3 border-b border-outline-variant/15 bg-surface-container-low flex items-center justify-between">
+                      <span className="text-sm font-bold text-on-surface-variant">
                         {classResults.length} students — sorted by position
+                      </span>
+                      <span className="text-xs text-on-surface-variant/60 flex items-center gap-1">
+                        <Icon name="lock" className="text-sm" /> Previews are watermarked
                       </span>
                     </div>
                     <div className="divide-y divide-outline-variant/10">
-                      {classResults.map((result) => (
-                        <div
-                          key={result.student.id}
-                          className="flex items-center gap-4 px-5 py-4 hover:bg-surface-container-low transition-colors"
-                        >
-                          {/* Position badge */}
-                          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-bold text-primary">
-                              {formatPosition(result.position)}
-                            </span>
-                          </div>
+                      {classResults
+                        .sort((a, b) => a.position - b.position)
+                        .map((result) => {
+                          const hasPrincipalComment = !!result.comment?.principalComment?.trim();
+                          return (
+                            <div
+                              key={result.student.id}
+                              className="flex items-center gap-4 px-5 py-4 hover:bg-surface-container-low/50 transition-colors"
+                            >
+                              {/* Position badge */}
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <span className="text-sm font-bold text-primary">
+                                  {formatPosition(result.position)}
+                                </span>
+                              </div>
 
-                          {/* Student info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-on-surface">
-                              {result.student.lastName} {result.student.firstName}
-                              {result.student.middleName
-                                ? ` ${result.student.middleName}`
-                                : ""}
-                            </p>
-                            <div className="flex items-center gap-3 mt-0.5">
-                              <span className="text-xs text-on-surface-variant/60">
-                                {result.student.admissionNumber}
+                              {/* Photo */}
+                              {result.student.photoUrl ? (
+                                <img
+                                  src={result.student.photoUrl}
+                                  alt={`${result.student.firstName}`}
+                                  className="w-9 h-9 rounded-full object-cover flex-shrink-0 border-2 border-surface-container-highest"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-xs font-bold text-on-surface-variant">
+                                  {result.student.firstName[0]}{result.student.lastName[0]}
+                                </div>
+                              )}
+
+                              {/* Student info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-on-surface text-sm">
+                                  {result.student.lastName} {result.student.firstName}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-xs text-on-surface-variant/60">
+                                    {result.student.admissionNumber}
+                                  </span>
+                                  <span className="text-xs text-on-surface-variant/40">·</span>
+                                  <span className={`text-xs font-bold ${
+                                    result.percentage >= 75 ? "text-secondary"
+                                    : result.percentage >= 50 ? "text-primary"
+                                    : result.percentage >= 40 ? "text-tertiary"
+                                    : "text-error"
+                                  }`}>
+                                    {result.percentage.toFixed(1)}%
+                                  </span>
+                                  <span className="text-xs text-on-surface-variant/40">·</span>
+                                  <span className="text-xs text-on-surface-variant">
+                                    {result.totalScore}/{result.totalPossible}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Comment status */}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                                hasPrincipalComment
+                                  ? 'badge-validated'
+                                  : 'bg-error-container text-on-error-container'
+                              }`}>
+                                {hasPrincipalComment ? 'Commented' : 'No Comment'}
                               </span>
-                              <span className="text-xs text-on-surface-variant/40">·</span>
-                              <span
-                                className={`text-xs font-bold ${
-                                  result.percentage >= 75
-                                    ? "text-secondary"
-                                    : result.percentage >= 50
-                                      ? "text-primary"
-                                      : result.percentage >= 40
-                                        ? "text-tertiary"
-                                        : "text-error"
-                                }`}
+
+                              {/* Preview button — only when comment exists */}
+                              <button
+                                onClick={() => handlePreview(result)}
+                                disabled={!hasPrincipalComment || previewingId === result.student.id}
+                                title={hasPrincipalComment ? 'Preview watermarked copy' : 'Write principal comment first'}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-outline-variant/30 rounded-xl hover:bg-surface-container-low hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
                               >
-                                {result.percentage.toFixed(1)}%
-                              </span>
-                              <span className="text-xs text-on-surface-variant/40">·</span>
-                              <span className="text-xs text-on-surface-variant">
-                                {result.totalScore}/{result.totalPossible} marks
-                              </span>
+                                <Icon name="visibility" className="text-sm" />
+                                Preview
+                              </button>
                             </div>
-                          </div>
-
-                          {/* Completeness indicators */}
-                          <div className="flex gap-1.5">
-                            <span
-                              title="Scores"
-                              className={`text-xs px-1.5 py-0.5 rounded ${
-                                result.scores.length > 0
-                                  ? "bg-secondary-container/40 text-on-secondary-container"
-                                  : "bg-error-container text-on-error-container"
-                              }`}
-                            >
-                              📝 {result.scores.length} subj
-                            </span>
-                            <span
-                              title="Psychometric"
-                              className={`text-xs px-1.5 py-0.5 rounded ${
-                                result.psychometricAssessment
-                                  ? "bg-secondary-container/40 text-on-secondary-container"
-                                  : "bg-tertiary-fixed text-on-tertiary-fixed-variant"
-                              }`}
-                            >
-                              🧠 {result.psychometricAssessment ? "✓" : "—"}
-                            </span>
-                            <span
-                              title="Comment"
-                              className={`text-xs px-1.5 py-0.5 rounded ${
-                                result.comment?.teacherComment
-                                  ? "bg-secondary-container/40 text-on-secondary-container"
-                                  : "bg-tertiary-fixed text-on-tertiary-fixed-variant"
-                              }`}
-                            >
-                              💬 {result.comment?.teacherComment ? "✓" : "—"}
-                            </span>
-                          </div>
-
-                          {/* Print button */}
-                          <button
-                            onClick={() => openResultInNewTab(result)}
-                            className="btn-ghost text-xs px-3 py-2.5 flex-shrink-0"
-                          >
-                            🖨️ Print
-                          </button>
-                        </div>
-                      ))}
+                          );
+                        })}
                     </div>
                   </div>
                 )}
-
-                {/* Hidden print zone — pre-renders templates for PDF generation */}
-                <div style={{ display: "none" }} aria-hidden>
-                  {school &&
-                    classResults.map((result) => (
-                      <TemplateResultSheet
-                        key={result.student.id}
-                        result={result}
-                        school={school}
-                        subjects={subjects}
-                        term={selectedTerm}
-                      />
-                    ))}
-                </div>
               </>
             )}
           </>

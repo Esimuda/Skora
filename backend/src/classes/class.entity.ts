@@ -3,35 +3,35 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 @Entity('classes')
 export class Class {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column({ nullable: true })
-  section: string;
+  section!: string;
 
   @Column({ nullable: true })
-  level: string;
+  level!: string;
 
   @Column()
-  academicYear: string;
+  academicYear!: string;
 
   @Column({ nullable: true })
-  teacherId: string;
+  teacherId!: string;
 
   @Column({ nullable: true })
-  teacherName: string;
+  teacherName!: string;
 
   @Column({ default: 0 })
-  studentCount: number;
+  studentCount!: number;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

@@ -122,6 +122,7 @@ export interface SchoolInfo {
   state?: string;
   lga?: string;
   schoolType?: string;
+  portalCode?: string;
   templateId: "classic" | "modern" | "hybrid";
 }
 

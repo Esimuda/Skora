@@ -47,6 +47,12 @@ export const PrincipalDashboard = () => {
   const [selectedTerm, setSelectedTerm] = useState<Term>(() => getCurrentTerm());
   const [selectedYear, setSelectedYear] = useState<string>(() => getCurrentAcademicYear());
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [batchStats, setBatchStats] = useState<{
+    hasActiveBatch: boolean;
+    totalPins: number;
+    usedPins: number;
+    unusedPins: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const isArchive =
@@ -69,11 +75,13 @@ export const PrincipalDashboard = () => {
         `/schools/${schoolId}/results?term=${selectedTerm}&academicYear=${yearParam}`,
       ),
       api.get<Notification[]>('/notifications'),
-    ]).then(([s, cls, res, notifs]) => {
+      api.get<any>(`/schools/${schoolId}/batches/stats?term=${selectedTerm}&academicYear=${yearParam}`),
+    ]).then(([s, cls, res, notifs, stats]) => {
       setSchool(s);
       setClasses(cls);
       setResults(res);
       setNotifications(notifs);
+      setBatchStats(stats);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [schoolId, selectedTerm, selectedYear]);
 
@@ -255,6 +263,52 @@ export const PrincipalDashboard = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Scratch card batch widget */}
+        <div className={`ledger-card p-5 flex items-center gap-5 flex-wrap sm:flex-nowrap ${!batchStats?.hasActiveBatch ? 'border-l-4 border-error' : 'border-l-4 border-secondary'}`}>
+          <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center ${!batchStats?.hasActiveBatch ? 'bg-error/10' : 'bg-secondary/10'}`}>
+            <Icon name="style" className={!batchStats?.hasActiveBatch ? 'text-error' : 'text-secondary'} />
+          </div>
+          <div className="flex-1 min-w-0">
+            {loading ? (
+              <div className="h-5 w-40 bg-surface-container-highest rounded animate-pulse" />
+            ) : batchStats?.hasActiveBatch ? (
+              <>
+                <p className="font-bold text-on-surface text-sm">
+                  Scratch cards active — {batchStats.unusedPins.toLocaleString()} PINs remaining
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-secondary transition-all"
+                      style={{ width: `${batchStats.totalPins > 0 ? Math.round((batchStats.usedPins / batchStats.totalPins) * 100) : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-on-surface-variant flex-shrink-0">
+                    {batchStats.usedPins.toLocaleString()} / {batchStats.totalPins.toLocaleString()} used
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="font-bold text-error text-sm">No active scratch card batch for this term</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">
+                  Parents cannot access results until a batch is activated. Request one from Settings.
+                </p>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => navigate('/principal/settings')}
+            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              !batchStats?.hasActiveBatch
+                ? 'bg-error text-on-error hover:bg-error/90'
+                : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-highest'
+            }`}
+          >
+            {batchStats?.hasActiveBatch ? 'Manage' : 'Request Batch'}
+          </button>
         </div>
 
         {/* Quick actions */}

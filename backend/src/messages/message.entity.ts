@@ -3,41 +3,41 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeor
 @Entity('messages')
 export class Message {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  schoolId: string;
+  schoolId!: string;
 
   @Column()
-  senderId: string;
+  senderId!: string;
 
   @Column()
-  senderName: string;
+  senderName!: string;
 
   @Column()
-  senderRole: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
+  senderRole!: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
   @Column()
-  recipientId: string;
+  recipientId!: string;
 
   @Column()
-  recipientName: string;
+  recipientName!: string;
 
   @Column()
-  recipientRole: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
+  recipientRole!: 'admin' | 'super_admin' | 'school_admin' | 'teacher';
 
   @Column({ type: 'text' })
-  content: string;
+  content!: string;
 
   @Column({ nullable: true })
-  classId: string;
+  classId!: string;
 
   @Column({ nullable: true })
-  className: string;
+  className!: string;
 
   @Column({ default: false })
-  isRead: boolean;
+  isRead!: boolean;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }
