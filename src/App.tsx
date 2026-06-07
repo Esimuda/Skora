@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AuthRoutes from "./routes/authRoutes";
 import TeacherRoutes from "./routes/teacherRoutes";
 import PrincipalRoutes from "./routes/principalRoutes";
@@ -22,7 +22,7 @@ function App() {
   }, [logout, clearData]);
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         {/* Public parent portal — no auth needed */}
         <Route path="/portal/*" element={<ParentPortal />} />
@@ -45,7 +45,7 @@ function App() {
           }
         />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 

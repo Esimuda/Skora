@@ -48,12 +48,13 @@ export class PinGenerator {
     term: string;
     academicYear: string;
     usesTotal: number;
+    isActive?: boolean;
   }): Promise<{ rawPins: string[] }> {
     const rawPins = this.generateUniquePins(opts.quantity);
 
     // Hash all PINs in parallel — much faster than sequential
     const hashes = await Promise.all(
-      rawPins.map((raw) => bcrypt.hash(raw, 8)), // cost 8 is fast enough for PINs
+      rawPins.map((raw) => bcrypt.hash(raw, 8)),
     );
 
     // Build all records and insert in one batch
@@ -67,7 +68,7 @@ export class PinGenerator {
         usesTotal: opts.usesTotal,
         term: opts.term,
         academicYear: opts.academicYear,
-        isActive: true,
+        isActive: opts.isActive ?? true,
       }),
     );
 

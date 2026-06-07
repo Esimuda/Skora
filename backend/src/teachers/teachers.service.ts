@@ -41,7 +41,7 @@ export class TeachersService {
       await this.tokenRepo.save(this.tokenRepo.create({ token, email: dto.email, schoolId, expiresAt }));
 
       const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
-      const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
+      const inviteUrl = `${frontendUrl}/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
 
       this.schools.findOne(schoolId).catch(() => null).then((schoolRecord) => {
         const schoolName = schoolRecord?.name ?? 'your school';
@@ -89,7 +89,7 @@ export class TeachersService {
     await this.tokenRepo.save(this.tokenRepo.create({ token, email: dto.email, schoolId, expiresAt }));
 
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
-    const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
+    const inviteUrl = `${frontendUrl}/accept-invite?token=${token}&email=${encodeURIComponent(dto.email)}`;
 
     // Fire-and-forget — don't block the response on email delivery
     this.schools.findOne(schoolId).catch(() => null).then((schoolRecord) => {
@@ -124,7 +124,7 @@ export class TeachersService {
     await this.tokenRepo.save(this.tokenRepo.create({ token, email: teacher.email, schoolId, expiresAt }));
 
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
-    const inviteUrl = `${frontendUrl}/#/accept-invite?token=${token}&email=${encodeURIComponent(teacher.email)}`;
+    const inviteUrl = `${frontendUrl}/accept-invite?token=${token}&email=${encodeURIComponent(teacher.email)}`;
     const schoolRecord = await this.schools.findOne(schoolId).catch(() => null);
     const schoolName = schoolRecord?.name ?? 'your school';
 

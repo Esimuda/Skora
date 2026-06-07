@@ -86,8 +86,7 @@ export class AuthService {
     await this.users.setResetToken(user.id, hashedToken, expiry);
 
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:5173');
-    // App uses HashRouter — link must include /#/ so the route matches.
-    const resetUrl = `${frontendUrl}/#/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+    const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
     // Fire and forget — don't block response on email delivery
     this.mail.sendPasswordReset({

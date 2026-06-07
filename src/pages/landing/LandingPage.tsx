@@ -155,7 +155,7 @@ export function LandingPage() {
           <li><a href="#roles" onClick={scrollToId("roles")}>Roles</a></li>
           <li>
             <a
-              href="#/login"
+              href="/login"
               className="nav-cta"
               onClick={(e) => { e.preventDefault(); openApp(); }}
             >

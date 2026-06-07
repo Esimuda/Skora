@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -54,6 +53,23 @@ export class PinBatchesService {
       }),
     );
 
+    // Pre-generate PINs immediately but keep them inactive.
+    // They are invisible to parents on the portal until you activate the batch.
+    // This means activation is instant (just a flag flip) with no timeout risk.
+    this.generator.generateBatch({
+      batchId: batch.id,
+      schoolId,
+      quantity: dto.quantity,
+      term: dto.term,
+      academicYear: dto.academicYear,
+      usesTotal: 5,
+      isActive: false,
+    }).catch((err) => {
+      // Log generation failure but don't break the request response.
+      // The batch will show pending and you can still activate manually.
+      console.error(`PIN pre-generation failed for batch ${batch.id}:`, err);
+    });
+
     // Notify super admin via email
     this.mail.sendBatchRequestNotification({
       schoolName: school.name,
@@ -81,15 +97,24 @@ export class PinBatchesService {
       throw new BadRequestException('This batch has already been activated');
     }
 
-    // Generate all PINs atomically
-    await this.generator.generateBatch({
-      batchId: batch.id,
-      schoolId: batch.schoolId,
-      quantity: batch.quantity,
-      term: batch.term,
-      academicYear: batch.academicYear,
-      usesTotal: batch.usesPerPin,
-    });
+    const existingPins = await this.pinRepo.count({ where: { batchId } });
+
+    if (existingPins > 0) {
+      // PINs were pre-generated at request time — just flip them active
+      await this.pinRepo.update({ batchId }, { isActive: true });
+    } else {
+      // Fallback: pre-generation failed or batch was created before this change.
+      // Generate now — this is the old path and may be slower for large batches.
+      await this.generator.generateBatch({
+        batchId: batch.id,
+        schoolId: batch.schoolId,
+        quantity: batch.quantity,
+        term: batch.term,
+        academicYear: batch.academicYear,
+        usesTotal: batch.usesPerPin,
+        isActive: true,
+      });
+    }
 
     // Update batch status
     await this.batchRepo.update(batchId, {
@@ -229,7 +254,7 @@ export class PinBatchesService {
     return Array.from(map.values());
   }
 
-  // ── Portal: get raw pins for PDF generation ───────────────────────────────
+  // ── Principal: get raw pins for PDF generation ────────────────────────────
 
   async getRawPinsForBatch(batchId: string, schoolId: string): Promise<string[]> {
     const batch = await this.batchRepo.findOne({ where: { id: batchId, schoolId } });
@@ -286,7 +311,6 @@ export class PinBatchesService {
     const usesRemaining = await this.generator.consumeUse(pin.id);
 
     if (usesRemaining === -1) {
-      // Another concurrent request consumed the last use — treat as exhausted
       return {
         valid: false,
         reason: 'This PIN has been fully used. Please use a different scratch card.',
