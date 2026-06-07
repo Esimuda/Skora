@@ -1,16 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuthStore } from "@/store/authStore";
 import { api } from "@/lib/api";
 import { Class, Teacher } from "@/types";
 import { getCurrentAcademicYear, getAcademicYearOptions } from '@/components/ui/TermSelector';
-const Icon = ({
-  name,
-  className = "",
-}: {
-  name: string;
-  className?: string;
-}) => <span className={`material-symbols-outlined ${className}`}>{name}</span>;
+
+const Icon = ({ name, className = "" }: { name: string; className?: string }) => (
+  <span className={`material-symbols-outlined ${className}`}>{name}</span>
+);
 
 const getEmptyForm = () => ({
   name: "",
@@ -40,6 +37,8 @@ export const ClassesPage = () => {
   const [saving, setSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [teacherDropdownOpen, setTeacherDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
@@ -51,6 +50,17 @@ export const ClassesPage = () => {
       setTeachers(tch);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [schoolId]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setTeacherDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filtered = classes.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
@@ -74,15 +84,18 @@ export const ClassesPage = () => {
     return Object.keys(e).length === 0;
   };
 
-  const handleTeacherChange = (selectedId: string) => {
-    const teacher = teachers.find((t) => t.id === selectedId);
-    // teacherId stored on the class must be the teacher's userId (from the users
-    // table), not the teacher record id — this is what the JWT strategy exposes
-    // as user.id and what the class filter compares against.
-    const userId = teacher?.userId ?? "";
-    const name = teacher ? `${teacher.firstName} ${teacher.lastName}` : "";
-    setForm({ ...form, teacherId: userId, teacherName: name });
+  const handleTeacherSelect = (teacher: Teacher | null) => {
+    if (!teacher) {
+      setForm({ ...form, teacherId: "", teacherName: "" });
+    } else {
+      const userId = teacher.userId ?? "";
+      const name = `${teacher.firstName} ${teacher.lastName}`;
+      setForm({ ...form, teacherId: userId, teacherName: name });
+    }
+    setTeacherDropdownOpen(false);
   };
+
+  const selectedTeacher = teachers.find((t) => t.userId === form.teacherId || t.id === form.teacherId);
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -90,10 +103,6 @@ export const ClassesPage = () => {
     setApiError(null);
     try {
       if (editingId) {
-        // Build the body explicitly — never send undefined values since the
-        // backend ValidationPipe with forbidNonWhitelisted rejects unknown keys,
-        // and JSON.stringify(undefined) drops the key silently but some
-        // serializers don't. Sending null clears the assignment intentionally.
         const patchBody: Record<string, unknown> = {
           name: form.name.trim(),
           academicYear: form.academicYear.trim(),
@@ -123,8 +132,6 @@ export const ClassesPage = () => {
   };
 
   const handleEdit = (cls: Class) => {
-    // The class stores teacherId as the teacher's userId. Find the matching
-    // teacher record so the dropdown can pre-select the right option.
     const matchedTeacher = teachers.find((t) => t.userId === cls.teacherId);
     setForm({
       name: cls.name,
@@ -144,6 +151,7 @@ export const ClassesPage = () => {
     setForm(getEmptyForm());
     setErrors({});
     setApiError(null);
+    setTeacherDropdownOpen(false);
   };
 
   if (loading) {
@@ -163,12 +171,8 @@ export const ClassesPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">
-              Classes
-            </h2>
-            <p className="text-on-surface-variant text-sm mt-1">
-              Create classes and assign teachers to them
-            </p>
+            <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Classes</h2>
+            <p className="text-on-surface-variant text-sm mt-1">Create classes and assign teachers to them</p>
           </div>
           {!showForm && (
             <button
@@ -217,28 +221,105 @@ export const ClassesPage = () => {
                   ))}
                 </select>
                 {errors.academicYear && <p className="mt-1.5 text-xs text-error">{errors.academicYear}</p>}
-                </div>
-              <div className="md:col-span-2">
+              </div>
+
+              {/* Custom teacher picker — full width */}
+              <div className="md:col-span-2" ref={dropdownRef}>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
                   Assign Teacher <span className="normal-case font-normal">(optional)</span>
                 </label>
+
                 {teachers.length === 0 ? (
                   <div className="input-inset text-on-tertiary-container bg-tertiary-fixed/20">
                     ⚠ No teachers added yet — go to Teachers page first
                   </div>
                 ) : (
-                  <select
-                    value={form.teacherId}
-                    onChange={(e) => handleTeacherChange(e.target.value)}
-                    className="input-inset"
-                  >
-                    <option value="">— No teacher assigned —</option>
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.firstName} {t.lastName} ({t.email})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    {/* Trigger button */}
+                    <button
+                      type="button"
+                      onClick={() => setTeacherDropdownOpen((o) => !o)}
+                      className={`w-full input-inset flex items-center justify-between gap-3 text-left transition-all ${
+                        teacherDropdownOpen ? "ring-2 ring-primary" : ""
+                      } ${selectedTeacher ? "border-primary/40 bg-primary/5" : ""}`}
+                    >
+                      {selectedTeacher ? (
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Avatar */}
+                          <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {selectedTeacher.firstName[0]}{selectedTeacher.lastName[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-on-surface text-sm truncate">
+                              {selectedTeacher.firstName} {selectedTeacher.lastName}
+                            </p>
+                            <p className="text-xs text-on-surface-variant truncate">{selectedTeacher.email}</p>
+                          </div>
+                          <Icon name="check_circle" className="text-primary text-lg flex-shrink-0 ml-auto" />
+                        </div>
+                      ) : (
+                        <span className="text-on-surface-variant/60 text-sm">— Tap to assign a teacher —</span>
+                      )}
+                      <Icon name={teacherDropdownOpen ? "expand_less" : "expand_more"} className="text-on-surface-variant flex-shrink-0" />
+                    </button>
+
+                    {/* Dropdown list */}
+                    {teacherDropdownOpen && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-surface rounded-xl shadow-ambient border border-outline-variant/20 overflow-hidden">
+                        {/* Clear option */}
+                        <button
+                          type="button"
+                          onClick={() => handleTeacherSelect(null)}
+                          className={`w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-surface-container transition-colors ${
+                            !form.teacherId ? "bg-surface-container" : ""
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded-full border-2 border-dashed border-outline-variant/40 flex items-center justify-center flex-shrink-0">
+                            <Icon name="remove" className="text-on-surface-variant/50 text-base" />
+                          </div>
+                          <span className="text-sm text-on-surface-variant italic">No teacher assigned</span>
+                          {!form.teacherId && (
+                            <Icon name="check" className="text-primary text-base ml-auto" />
+                          )}
+                        </button>
+
+                        <div className="border-t border-outline-variant/10" />
+
+                        {/* Teacher options */}
+                        {teachers.map((t) => {
+                          const isSelected = form.teacherId === t.userId || form.teacherId === t.id;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => handleTeacherSelect(t)}
+                              className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
+                                isSelected
+                                  ? "bg-primary/10 hover:bg-primary/15"
+                                  : "hover:bg-surface-container"
+                              }`}
+                            >
+                              {/* Avatar */}
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                isSelected ? "bg-primary text-on-primary" : "bg-surface-container-highest text-on-surface-variant"
+                              }`}>
+                                {t.firstName[0]}{t.lastName[0]}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={`font-bold text-sm truncate ${isSelected ? "text-primary" : "text-on-surface"}`}>
+                                  {t.firstName} {t.lastName}
+                                </p>
+                                <p className="text-xs text-on-surface-variant truncate">{t.email}</p>
+                              </div>
+                              {isSelected && (
+                                <Icon name="check_circle" className="text-primary text-lg flex-shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
