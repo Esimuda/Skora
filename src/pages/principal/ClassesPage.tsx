@@ -88,9 +88,9 @@ export const ClassesPage = () => {
     if (!teacher) {
       setForm({ ...form, teacherId: "", teacherName: "" });
     } else {
-      const userId = teacher.userId ?? "";
-      const name = `${teacher.firstName} ${teacher.lastName}`;
-      setForm({ ...form, teacherId: userId, teacherName: name });
+      const teacherId = teacher.userId || teacher.id;
+const name = `${teacher.firstName} ${teacher.lastName}`;
+setForm({ ...form, teacherId, teacherName: name });
     }
     setTeacherDropdownOpen(false);
   };
