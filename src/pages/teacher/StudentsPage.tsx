@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { api } from '@/lib/api';
 import { useTeacherClasses } from '@/lib/useTeacherClasses';
@@ -13,6 +13,7 @@ const emptyForm = {
   dateOfBirth: '',
   parentName: '',
   parentPhone: '',
+  photoUrl: '',
 };
 
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => (
@@ -34,6 +35,7 @@ const StudentsPage = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) { setStudents([]); return; }
@@ -48,13 +50,30 @@ const StudentsPage = () => {
     `${s.firstName} ${s.lastName} ${s.admissionNumber}`.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Convert selected image file to base64 string
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Enforce max size of 500KB to keep DB storage reasonable
+    if (file.size > 500 * 1024) {
+      setErrors({ ...errors, photo: 'Photo must be under 500KB. Please compress the image and try again.' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm({ ...form, photoUrl: reader.result as string });
+      setErrors({ ...errors, photo: '' });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.firstName.trim()) e.firstName = 'First name is required';
     if (!form.lastName.trim()) e.lastName = 'Last name is required';
     if (!selectedClassId) e.class = 'Please select a class first';
-    // Admission number is optional — backend auto-generates if blank.
-    // Only check for duplicates when a number was explicitly typed.
     if (form.admissionNumber.trim()) {
       const duplicate = students.find(
         (s) =>
@@ -80,6 +99,7 @@ const StudentsPage = () => {
       dateOfBirth: form.dateOfBirth || undefined,
       parentName: form.parentName.trim() || undefined,
       parentPhone: form.parentPhone.trim() || undefined,
+      photoUrl: form.photoUrl || undefined,
     };
     try {
       if (editingId) {
@@ -114,6 +134,7 @@ const StudentsPage = () => {
       dateOfBirth: student.dateOfBirth ?? '',
       parentName: (student as any).parentName ?? '',
       parentPhone: (student as any).parentPhone ?? '',
+      photoUrl: (student as any).photoUrl ?? '',
     });
     setEditingId(student.id);
     setShowForm(true);
@@ -207,6 +228,58 @@ const StudentsPage = () => {
             <h3 className="font-headline font-bold text-lg text-primary mb-5">
               {editingId ? 'Edit Student' : 'Add New Student'}
             </h3>
+
+            {/* Photo upload — full width at top */}
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
+                Passport Photo <span className="normal-case font-normal">(optional — shown on parent portal & report card)</span>
+              </label>
+              <div className="flex items-center gap-5">
+                {/* Preview */}
+                <div
+                  onClick={() => photoInputRef.current?.click()}
+                  className="w-24 h-24 rounded-xl border-2 border-dashed border-outline-variant/40 bg-surface-container flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-colors flex-shrink-0"
+                >
+                  {form.photoUrl ? (
+                    <img src={form.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-on-surface-variant/50">
+                      <Icon name="add_a_photo" className="text-3xl" />
+                      <span className="text-xs">Upload</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="btn-ghost text-sm flex items-center gap-2"
+                  >
+                    <Icon name="upload" className="text-base" />
+                    {form.photoUrl ? 'Change Photo' : 'Choose Photo'}
+                  </button>
+                  {form.photoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setForm({ ...form, photoUrl: '' }); if (photoInputRef.current) photoInputRef.current.value = ''; }}
+                      className="text-xs text-error hover:underline flex items-center gap-1"
+                    >
+                      <Icon name="delete" className="text-sm" /> Remove photo
+                    </button>
+                  )}
+                  <p className="text-xs text-on-surface-variant/60">Max 500KB · JPG, PNG, or WEBP</p>
+                </div>
+              </div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+              {errors.photo && <p className="mt-2 text-xs text-error">{errors.photo}</p>}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
@@ -303,7 +376,7 @@ const StudentsPage = () => {
 
                 {/* Desktop table */}
                 <div className="hidden md:block">
-                  <div className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
+                  <div className="grid grid-cols-[3rem_1fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-surface-container-low border-t border-outline-variant/10">
                     <span />
                     <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Name</span>
                     <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Admission No.</span>
@@ -311,9 +384,16 @@ const StudentsPage = () => {
                     <span />
                   </div>
                   <div className="divide-y divide-outline-variant/10">
-                    {filtered.map((student, idx) => (
-                      <div key={student.id} className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors">
-                        <span className="w-7 h-7 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant">{idx + 1}</span>
+                    {filtered.map((student) => (
+                      <div key={student.id} className="grid grid-cols-[3rem_1fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors">
+                        {/* Photo or initial avatar */}
+                        {(student as any).photoUrl ? (
+                          <img src={(student as any).photoUrl} alt="" className="w-9 h-9 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant">
+                            {student.firstName[0]}{student.lastName[0]}
+                          </div>
+                        )}
                         <div>
                           <p className="font-bold text-on-surface text-sm">{student.lastName} {student.firstName}{student.middleName ? ` ${student.middleName}` : ''}</p>
                           <p className="text-xs text-on-surface-variant mt-0.5">{student.gender === 'male' ? '♂' : '♀'} {student.gender}</p>
@@ -338,10 +418,16 @@ const StudentsPage = () => {
 
                 {/* Mobile cards */}
                 <div className="md:hidden divide-y divide-outline-variant/10">
-                  {filtered.map((student, idx) => (
+                  {filtered.map((student) => (
                     <div key={student.id} className="p-4 space-y-3">
                       <div className="flex items-start gap-3">
-                        <span className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-on-surface-variant flex-shrink-0">{idx + 1}</span>
+                        {(student as any).photoUrl ? (
+                          <img src={(student as any).photoUrl} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-sm font-bold text-on-surface-variant flex-shrink-0">
+                            {student.firstName[0]}{student.lastName[0]}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-on-surface">{student.lastName} {student.firstName}{student.middleName ? ` ${student.middleName}` : ''}</p>
                           <div className="flex flex-wrap gap-2 mt-1">
