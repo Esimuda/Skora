@@ -51,7 +51,6 @@ export const ClassesPage = () => {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [schoolId]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -84,18 +83,21 @@ export const ClassesPage = () => {
     return Object.keys(e).length === 0;
   };
 
+  // selectedTeacher is looked up purely by teacher.id — simple and reliable
+  const selectedTeacher = teachers.find((t) => t.id === form.teacherId);
+
   const handleTeacherSelect = (teacher: Teacher | null) => {
     if (!teacher) {
       setForm({ ...form, teacherId: "", teacherName: "" });
     } else {
-      const teacherId = teacher.userId || teacher.id;
-const name = `${teacher.firstName} ${teacher.lastName}`;
-setForm({ ...form, teacherId, teacherName: name });
+      setForm({
+        ...form,
+        teacherId: teacher.id, // always use teacher.id — always present
+        teacherName: `${teacher.firstName} ${teacher.lastName}`,
+      });
     }
     setTeacherDropdownOpen(false);
   };
-
-  const selectedTeacher = teachers.find((t) => t.userId === form.teacherId || t.id === form.teacherId);
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -103,19 +105,22 @@ setForm({ ...form, teacherId, teacherName: name });
     setApiError(null);
     try {
       if (editingId) {
+        // When saving, send teacher.userId to the backend (what the backend expects)
+        const resolvedUserId = selectedTeacher?.userId || form.teacherId || null;
         const patchBody: Record<string, unknown> = {
           name: form.name.trim(),
           academicYear: form.academicYear.trim(),
-          teacherId: form.teacherId || null,
+          teacherId: resolvedUserId,
           teacherName: form.teacherName || null,
         };
         const updated = await api.patch<Class>(`/schools/${schoolId}/classes/${editingId}`, patchBody);
         setClasses((prev) => prev.map((c) => c.id === editingId ? updated : c));
       } else {
+        const resolvedUserId = selectedTeacher?.userId || form.teacherId || undefined;
         const created = await api.post<Class>(`/schools/${schoolId}/classes`, {
           name: form.name.trim(),
           academicYear: form.academicYear.trim(),
-          teacherId: form.teacherId || undefined,
+          teacherId: resolvedUserId,
           teacherName: form.teacherName || undefined,
         });
         setClasses((prev) => [...prev, created]);
@@ -132,11 +137,13 @@ setForm({ ...form, teacherId, teacherName: name });
   };
 
   const handleEdit = (cls: Class) => {
+    // Find teacher by userId (what backend stores on the class)
     const matchedTeacher = teachers.find((t) => t.userId === cls.teacherId);
     setForm({
       name: cls.name,
       academicYear: cls.academicYear,
-      teacherId: matchedTeacher?.id ?? cls.teacherId ?? "",
+      // Store teacher.id for UI matching, resolve to userId on save
+      teacherId: matchedTeacher?.id ?? "",
       teacherName: cls.teacherName ?? "",
     });
     setEditingId(cls.id);
@@ -168,6 +175,7 @@ setForm({ ...form, teacherId, teacherName: name });
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -223,7 +231,7 @@ setForm({ ...form, teacherId, teacherName: name });
                 {errors.academicYear && <p className="mt-1.5 text-xs text-error">{errors.academicYear}</p>}
               </div>
 
-              {/* Custom teacher picker — full width */}
+              {/* Custom teacher picker */}
               <div className="md:col-span-2" ref={dropdownRef}>
                 <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
                   Assign Teacher <span className="normal-case font-normal">(optional)</span>
@@ -244,21 +252,20 @@ setForm({ ...form, teacherId, teacherName: name });
                       } ${selectedTeacher ? "border-primary/40 bg-primary/5" : ""}`}
                     >
                       {selectedTeacher ? (
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Avatar */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
                             {selectedTeacher.firstName[0]}{selectedTeacher.lastName[0]}
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="font-bold text-on-surface text-sm truncate">
                               {selectedTeacher.firstName} {selectedTeacher.lastName}
                             </p>
                             <p className="text-xs text-on-surface-variant truncate">{selectedTeacher.email}</p>
                           </div>
-                          <Icon name="check_circle" className="text-primary text-lg flex-shrink-0 ml-auto" />
+                          <Icon name="check_circle" className="text-primary text-lg flex-shrink-0" />
                         </div>
                       ) : (
-                        <span className="text-on-surface-variant/60 text-sm">— Tap to assign a teacher —</span>
+                        <span className="text-on-surface-variant/60 text-sm flex-1">— Tap to assign a teacher —</span>
                       )}
                       <Icon name={teacherDropdownOpen ? "expand_less" : "expand_more"} className="text-on-surface-variant flex-shrink-0" />
                     </button>
@@ -277,9 +284,9 @@ setForm({ ...form, teacherId, teacherName: name });
                           <div className="w-8 h-8 rounded-full border-2 border-dashed border-outline-variant/40 flex items-center justify-center flex-shrink-0">
                             <Icon name="remove" className="text-on-surface-variant/50 text-base" />
                           </div>
-                          <span className="text-sm text-on-surface-variant italic">No teacher assigned</span>
+                          <span className="text-sm text-on-surface-variant italic flex-1">No teacher assigned</span>
                           {!form.teacherId && (
-                            <Icon name="check" className="text-primary text-base ml-auto" />
+                            <Icon name="check" className="text-primary text-base" />
                           )}
                         </button>
 
@@ -287,7 +294,7 @@ setForm({ ...form, teacherId, teacherName: name });
 
                         {/* Teacher options */}
                         {teachers.map((t) => {
-                          const isSelected = form.teacherId === t.userId || form.teacherId === t.id;
+                          const isSelected = form.teacherId === t.id;
                           return (
                             <button
                               key={t.id}
@@ -299,9 +306,10 @@ setForm({ ...form, teacherId, teacherName: name });
                                   : "hover:bg-surface-container"
                               }`}
                             >
-                              {/* Avatar */}
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                isSelected ? "bg-primary text-on-primary" : "bg-surface-container-highest text-on-surface-variant"
+                                isSelected
+                                  ? "bg-primary text-on-primary"
+                                  : "bg-surface-container-highest text-on-surface-variant"
                               }`}>
                                 {t.firstName[0]}{t.lastName[0]}
                               </div>
