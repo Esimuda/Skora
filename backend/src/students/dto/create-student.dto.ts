@@ -11,4 +11,5 @@ export class CreateStudentDto {
   @IsString() @IsOptional() parentPhone?: string;
   @IsString() @IsOptional() parentEmail?: string;
   @IsString() @IsOptional() address?: string;
+  @IsString() @IsOptional() photoUrl?: string;
 }
