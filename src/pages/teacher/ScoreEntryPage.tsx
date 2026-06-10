@@ -4,6 +4,11 @@ import { api } from '@/lib/api';
 import { useTeacherClasses } from '@/lib/useTeacherClasses';
 import { getGrade } from '@/store/dataStore';
 import { Subject, Student, Score, Term } from '@/types';
+import {
+  TermSelector,
+  getCurrentTerm,
+  getCurrentAcademicYear,
+} from '@/components/ui/TermSelector';
 
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
@@ -29,14 +34,13 @@ const ScoreEntryPage = () => {
 
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
-  const [term, setTerm] = useState<Term>('first');
-  const [academicYear, setAcademicYear] = useState('2024/2025');
+  const [term, setTerm] = useState<Term>(() => getCurrentTerm());
+  const [academicYear, setAcademicYear] = useState<string>(() => getCurrentAcademicYear());
 
   const [loadingData, setLoadingData] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
-
 
   useEffect(() => {
     if (!selectedClassId || !schoolId) { setSubjects([]); setStudents([]); setScores([]); return; }
@@ -69,8 +73,6 @@ const ScoreEntryPage = () => {
     }).finally(() => setLoadingData(false));
   }, [selectedClassId, selectedSubjectId, term, academicYear]);
 
-  // Pressing Enter on a score input moves focus to the next input in sequence:
-  // CA1 → CA2 → Exam, then on to the next student's CA1.
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     studentIndex: number,
@@ -87,15 +89,13 @@ const ScoreEntryPage = () => {
     let nextField: ScoreField;
 
     if (isLastField) {
-      // Move to the first field of the next student
       nextStudentIndex = studentIndex + 1;
       nextField = 'ca1';
     } else {
-      // Move to the next field of the same student
       nextField = fieldOrder[currentFieldIndex + 1];
     }
 
-    if (nextStudentIndex >= scores.length) return; // already at last input
+    if (nextStudentIndex >= scores.length) return;
 
     const nextId = `score-${scores[nextStudentIndex].studentId}-${nextField}`;
     const nextInput = document.getElementById(nextId) as HTMLInputElement | null;
@@ -121,10 +121,9 @@ const ScoreEntryPage = () => {
     setSavedAt(null);
   };
 
- const handleSaveAll = async () => {
+  const handleSaveAll = async () => {
     if (!selectedClassId || !selectedSubjectId) return;
 
-    // Validate: every student must have all three fields filled before saving
     const incomplete = scores.filter(
       (s) => s.ca1 === '' || s.ca2 === '' || s.exam === ''
     );
@@ -167,7 +166,6 @@ const ScoreEntryPage = () => {
   const selectedSubject = subjects.find((s) => s.id === selectedSubjectId);
   const filledCount = scores.filter((s) => s.ca1 !== '' && s.ca2 !== '' && s.exam !== '').length;
 
-
   return (
     <DashboardLayout>
       {noClasses && (
@@ -181,6 +179,7 @@ const ScoreEntryPage = () => {
       )}
       {!noClasses && (
         <div className="space-y-6 animate-fade-in">
+
           {/* Header */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -188,23 +187,31 @@ const ScoreEntryPage = () => {
               <p className="text-on-surface-variant text-sm mt-1">Enter CA and exam scores per subject</p>
             </div>
             {selectedClassId && selectedSubjectId && scores.length > 0 && (
-            <button onClick={handleSaveAll} disabled={saving} className="btn-primary flex items-center gap-2 text-sm disabled:opacity-60">
-              {saving ? (
-                <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</>
-              ) : filledCount < scores.length ? (
-                <><Icon name="save" /> Save Scores ({filledCount}/{scores.length} filled)</>
-              ) : (
-                <><Icon name="save" /> Save All Scores</>
-              )}
-            </button>
-          )}
+              <button onClick={handleSaveAll} disabled={saving} className="btn-primary flex items-center gap-2 text-sm disabled:opacity-60">
+                {saving ? (
+                  <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</>
+                ) : filledCount < scores.length ? (
+                  <><Icon name="save" /> Save Scores ({filledCount}/{scores.length} filled)</>
+                ) : (
+                  <><Icon name="save" /> Save All Scores</>
+                )}
+              </button>
+            )}
           </div>
 
           {apiError && (
             <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{apiError}</div>
           )}
 
-          {/* Selectors */}
+          {/* Term + Academic Year — auto-set to current Nigerian term/year */}
+          <TermSelector
+            term={term}
+            academicYear={academicYear}
+            onTermChange={setTerm}
+            onAcademicYearChange={setAcademicYear}
+          />
+
+          {/* Class + Subject selectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="ledger-card p-5">
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Select Class</label>
@@ -227,20 +234,6 @@ const ScoreEntryPage = () => {
                 {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>)}
               </select>
               {selectedClassId && subjects.length === 0 && <p className="mt-2 text-xs text-on-tertiary-container">No subjects yet — add subjects first</p>}
-            </div>
-
-            <div className="ledger-card p-5">
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Term</label>
-              <select value={term} onChange={(e) => setTerm(e.target.value as Term)} className="input-inset">
-                <option value="first">First Term</option>
-                <option value="second">Second Term</option>
-                <option value="third">Third Term</option>
-              </select>
-            </div>
-
-            <div className="ledger-card p-5">
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Academic Year</label>
-              <input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="e.g. 2024/2025" className="input-inset" />
             </div>
           </div>
 
@@ -301,19 +294,19 @@ const ScoreEntryPage = () => {
                               <p className="text-xs text-on-surface-variant">{student.admissionNumber}</p>
                             </div>
                             {(['ca1', 'ca2', 'exam'] as ScoreField[]).map((field) => (
-                            <input
-                              key={field}
-                              id={`score-${score.studentId}-${field}`}
-                              type="number"
-                              min={0}
-                              max={field === 'exam' ? 60 : 20}
-                              value={score[field]}
-                              onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(e, idx, field)}
-                              placeholder="—"
-                              className="w-full bg-surface-container-highest border-none rounded-lg px-2 py-2 text-sm text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
-                            />
-                          ))}
+                              <input
+                                key={field}
+                                id={`score-${score.studentId}-${field}`}
+                                type="number"
+                                min={0}
+                                max={field === 'exam' ? 60 : 20}
+                                value={score[field]}
+                                onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, idx, field)}
+                                placeholder="—"
+                                className="w-full bg-surface-container-highest border-none rounded-lg px-2 py-2 text-sm text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                              />
+                            ))}
                             <div className="text-center">
                               <span className={`font-headline font-extrabold text-lg ${isFilled ? (score.total >= 50 ? 'text-secondary' : 'text-error') : 'text-on-surface-variant/30'}`}>
                                 {isFilled ? score.total : '—'}
@@ -358,17 +351,17 @@ const ScoreEntryPage = () => {
                                   {field === 'ca1' ? 'CA1 /20' : field === 'ca2' ? 'CA2 /20' : 'Exam /60'}
                                 </label>
                                 <input
-                                id={`score-${score.studentId}-${field}`}
-                                type="number"
-                                inputMode="numeric"
-                                min={0}
-                                max={field === 'exam' ? 60 : 20}
-                                value={score[field]}
-                                onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, idx, field)}
-                                placeholder="—"
-                                className="w-full bg-surface-container-highest border-none rounded-xl px-2 py-3 text-base text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
-                              />
+                                  id={`score-${score.studentId}-${field}`}
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={0}
+                                  max={field === 'exam' ? 60 : 20}
+                                  value={score[field]}
+                                  onChange={(e) => handleScoreChange(score.studentId, field, e.target.value)}
+                                  onKeyDown={(e) => handleKeyDown(e, idx, field)}
+                                  placeholder="—"
+                                  className="w-full bg-surface-container-highest border-none rounded-xl px-2 py-3 text-base text-center font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                                />
                               </div>
                             ))}
                           </div>
@@ -380,14 +373,14 @@ const ScoreEntryPage = () => {
                   <div className="px-4 md:px-6 py-4 bg-surface-container-low border-t border-outline-variant/10 flex items-center justify-between gap-3">
                     <p className="text-xs text-on-surface-variant hidden sm:block">Scores are saved to the server.</p>
                     <button onClick={handleSaveAll} disabled={saving} className="btn-primary text-sm disabled:opacity-60 flex items-center gap-2 w-full sm:w-auto justify-center">
-                    {saving ? (
-                      <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</>
-                    ) : filledCount < scores.length ? (
-                      <><Icon name="save" /> Save Scores ({filledCount}/{scores.length} filled)</>
-                    ) : (
-                      <><Icon name="save" /> Save All Scores</>
-                    )}
-                  </button>
+                      {saving ? (
+                        <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</>
+                      ) : filledCount < scores.length ? (
+                        <><Icon name="save" /> Save Scores ({filledCount}/{scores.length} filled)</>
+                      ) : (
+                        <><Icon name="save" /> Save All Scores</>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
