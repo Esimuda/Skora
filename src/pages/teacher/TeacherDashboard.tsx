@@ -49,17 +49,22 @@ export const TeacherDashboard = () => {
     if (!schoolId) { setLoading(false); return; }
     setLoading(true);
     const yearParam = encodeURIComponent(selectedYear);
-    Promise.all([
-      api.get<Class[]>(`/schools/${schoolId}/classes`),
-      api.get<ClassResult[]>(
-        `/schools/${schoolId}/results?term=${selectedTerm}&academicYear=${yearParam}`,
-      ),
-      api.get<Notification[]>('/notifications'),
-    ]).then(([cls, res, notifs]) => {
-      setClasses(cls);
-      setResults(res);
-      setNotifications(notifs);
-    }).catch(() => {}).finally(() => setLoading(false));
+
+    // Fetch classes independently — a failure in results or notifications
+    // must never cause classes to appear empty and trigger the warning banner
+    api.get<Class[]>(`/schools/${schoolId}/classes`)
+      .then(setClasses)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+    api.get<ClassResult[]>(
+      `/schools/${schoolId}/results?term=${selectedTerm}&academicYear=${yearParam}`,
+    ).then(setResults).catch(() => {});
+
+    api.get<Notification[]>('/notifications')
+      .then(setNotifications)
+      .catch(() => {});
+
   }, [schoolId, selectedTerm, selectedYear]);
 
   const totalStudents = classes.reduce((sum, c) => sum + ((c as any).studentCount ?? 0), 0);
