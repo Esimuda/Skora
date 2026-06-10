@@ -20,6 +20,49 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
   <span className={`material-symbols-outlined ${className}`}>{name}</span>
 );
 
+// Compresses an image file to max 300KB and max 800x800px using the browser Canvas API.
+// No external library needed. The original file on the teacher's device is untouched.
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 800;
+        let { width, height } = img;
+
+        if (width > MAX_SIZE || height > MAX_SIZE) {
+          if (width > height) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          } else {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Reduce quality until under ~300KB
+        let quality = 0.8;
+        let result = canvas.toDataURL('image/jpeg', quality);
+        while (result.length > 300 * 1024 * 1.37 && quality > 0.2) {
+          quality -= 0.1;
+          result = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        resolve(result);
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 const StudentsPage = () => {
   const { classes, loading: loadingClasses, noClasses, schoolId } = useTeacherClasses();
 
@@ -35,6 +78,7 @@ const StudentsPage = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [compressing, setCompressing] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,23 +94,26 @@ const StudentsPage = () => {
     `${s.firstName} ${s.lastName} ${s.admissionNumber}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Convert selected image file to base64 string
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Enforce max size of 500KB to keep DB storage reasonable
-    if (file.size > 500 * 1024) {
-      setErrors({ ...errors, photo: 'Photo must be under 500KB. Please compress the image and try again.' });
+    // 5MB hard limit before compression
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors({ ...errors, photo: 'Photo must be under 5MB.' });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm({ ...form, photoUrl: reader.result as string });
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(file);
+      setForm({ ...form, photoUrl: compressed });
       setErrors({ ...errors, photo: '' });
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setErrors({ ...errors, photo: 'Failed to process image. Please try another.' });
+    } finally {
+      setCompressing(false);
+    }
   };
 
   const validate = () => {
@@ -229,18 +276,22 @@ const StudentsPage = () => {
               {editingId ? 'Edit Student' : 'Add New Student'}
             </h3>
 
-            {/* Photo upload — full width at top */}
+            {/* Photo upload */}
             <div className="mb-6">
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">
                 Passport Photo <span className="normal-case font-normal">(optional — shown on parent portal & report card)</span>
               </label>
               <div className="flex items-center gap-5">
-                {/* Preview */}
                 <div
-                  onClick={() => photoInputRef.current?.click()}
+                  onClick={() => !compressing && photoInputRef.current?.click()}
                   className="w-24 h-24 rounded-xl border-2 border-dashed border-outline-variant/40 bg-surface-container flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-colors flex-shrink-0"
                 >
-                  {form.photoUrl ? (
+                  {compressing ? (
+                    <div className="flex flex-col items-center gap-1 text-on-surface-variant/50">
+                      <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      <span className="text-xs">Processing...</span>
+                    </div>
+                  ) : form.photoUrl ? (
                     <img src={form.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-on-surface-variant/50">
@@ -253,12 +304,13 @@ const StudentsPage = () => {
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
-                    className="btn-ghost text-sm flex items-center gap-2"
+                    disabled={compressing}
+                    className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-50"
                   >
                     <Icon name="upload" className="text-base" />
-                    {form.photoUrl ? 'Change Photo' : 'Choose Photo'}
+                    {compressing ? 'Compressing...' : form.photoUrl ? 'Change Photo' : 'Choose Photo'}
                   </button>
-                  {form.photoUrl && (
+                  {form.photoUrl && !compressing && (
                     <button
                       type="button"
                       onClick={() => { setForm({ ...form, photoUrl: '' }); if (photoInputRef.current) photoInputRef.current.value = ''; }}
@@ -267,7 +319,7 @@ const StudentsPage = () => {
                       <Icon name="delete" className="text-sm" /> Remove photo
                     </button>
                   )}
-                  <p className="text-xs text-on-surface-variant/60">Max 500KB · JPG, PNG, or WEBP</p>
+                  <p className="text-xs text-on-surface-variant/60">Up to 5MB · JPG, PNG, or WEBP · Auto-compressed</p>
                 </div>
               </div>
               <input
@@ -339,7 +391,7 @@ const StudentsPage = () => {
             </div>
             <div className="flex gap-3">
               <button onClick={handleCancel} className="btn-ghost text-sm">Cancel</button>
-              <button onClick={handleSave} disabled={saving} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
+              <button onClick={handleSave} disabled={saving || compressing} className="btn-primary text-sm disabled:opacity-50 flex items-center gap-2">
                 {saving ? <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Saving...</> : editingId ? 'Update Student' : 'Add Student'}
               </button>
             </div>
@@ -386,7 +438,6 @@ const StudentsPage = () => {
                   <div className="divide-y divide-outline-variant/10">
                     {filtered.map((student) => (
                       <div key={student.id} className="grid grid-cols-[3rem_1fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 hover:bg-surface-container-low/50 transition-colors">
-                        {/* Photo or initial avatar */}
                         {(student as any).photoUrl ? (
                           <img src={(student as any).photoUrl} alt="" className="w-9 h-9 rounded-full object-cover" />
                         ) : (
