@@ -32,8 +32,12 @@ export class StudentsController {
   }
 
   @Put(':id')
-  @Patch(':id')
   update(@Param('schoolId') schoolId: string, @Param('id') id: string, @Body() dto: UpdateStudentDto) {
+    return this.service.update(schoolId, id, dto);
+  }
+
+  @Patch(':id')
+  patch(@Param('schoolId') schoolId: string, @Param('id') id: string, @Body() dto: UpdateStudentDto) {
     return this.service.update(schoolId, id, dto);
   }
 
