@@ -42,19 +42,31 @@ const ScoreEntryPage = () => {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Fetch subjects and students whenever class changes
   useEffect(() => {
-    if (!selectedClassId || !schoolId) { setSubjects([]); setStudents([]); setScores([]); return; }
-    Promise.all([
-      api.get<Subject[]>(`/schools/${schoolId}/classes/${selectedClassId}/subjects`),
-      api.get<Student[]>(`/schools/${schoolId}/classes/${selectedClassId}/students`),
-    ]).then(([sub, stu]) => {
-      setSubjects(sub);
-      setStudents(stu);
-    }).catch(() => {});
+    if (!selectedClassId || !schoolId) {
+      setSubjects([]);
+      setStudents([]);
+      setScores([]);
+      return;
+    }
+    setApiError(null);
+    api.get<Subject[]>(`/schools/${schoolId}/classes/${selectedClassId}/subjects`)
+      .then(setSubjects)
+      .catch((e) => setApiError(e.message ?? 'Failed to load subjects'));
+
+    api.get<Student[]>(`/schools/${schoolId}/classes/${selectedClassId}/students`)
+      .then(setStudents)
+      .catch((e) => setApiError(e.message ?? 'Failed to load students'));
   }, [selectedClassId, schoolId]);
 
+  // Fetch existing scores whenever class, subject, term, or year changes
+  // Also depends on students so scores populate correctly after students load
   useEffect(() => {
-    if (!selectedClassId || !selectedSubjectId || !schoolId) { setScores([]); return; }
+    if (!selectedClassId || !selectedSubjectId || !schoolId || students.length === 0) {
+      setScores([]);
+      return;
+    }
     setLoadingData(true);
     setApiError(null);
     api.get<Score[]>(
@@ -63,15 +75,25 @@ const ScoreEntryPage = () => {
       setScores(students.map((student) => {
         const existing = saved.find((s) => s.studentId === student.id);
         if (existing) {
-          return { studentId: student.id, ca1: existing.ca1, ca2: existing.ca2, exam: existing.exam, total: existing.total, grade: existing.grade, remark: existing.remark };
+          return {
+            studentId: student.id,
+            ca1: existing.ca1,
+            ca2: existing.ca2,
+            exam: existing.exam,
+            total: existing.total,
+            grade: existing.grade,
+            remark: existing.remark,
+          };
         }
         return { studentId: student.id, ca1: '', ca2: '', exam: '', total: 0, grade: '', remark: '' };
       }));
       setSavedAt(null);
     }).catch(() => {
-      setScores(students.map((student) => ({ studentId: student.id, ca1: '', ca2: '', exam: '', total: 0, grade: '', remark: '' })));
+      setScores(students.map((student) => ({
+        studentId: student.id, ca1: '', ca2: '', exam: '', total: 0, grade: '', remark: '',
+      })));
     }).finally(() => setLoadingData(false));
-  }, [selectedClassId, selectedSubjectId, term, academicYear]);
+  }, [selectedClassId, selectedSubjectId, term, academicYear, students]);
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -80,23 +102,18 @@ const ScoreEntryPage = () => {
   ) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-
     const fieldOrder: ScoreField[] = ['ca1', 'ca2', 'exam'];
     const currentFieldIndex = fieldOrder.indexOf(field);
     const isLastField = currentFieldIndex === fieldOrder.length - 1;
-
     let nextStudentIndex = studentIndex;
     let nextField: ScoreField;
-
     if (isLastField) {
       nextStudentIndex = studentIndex + 1;
       nextField = 'ca1';
     } else {
       nextField = fieldOrder[currentFieldIndex + 1];
     }
-
     if (nextStudentIndex >= scores.length) return;
-
     const nextId = `score-${scores[nextStudentIndex].studentId}-${nextField}`;
     const nextInput = document.getElementById(nextId) as HTMLInputElement | null;
     nextInput?.focus();
@@ -123,10 +140,7 @@ const ScoreEntryPage = () => {
 
   const handleSaveAll = async () => {
     if (!selectedClassId || !selectedSubjectId) return;
-
-    const incomplete = scores.filter(
-      (s) => s.ca1 === '' || s.ca2 === '' || s.exam === ''
-    );
+    const incomplete = scores.filter((s) => s.ca1 === '' || s.ca2 === '' || s.exam === '');
     if (incomplete.length > 0) {
       const names = incomplete.map((s) => {
         const student = students.find((st) => st.id === s.studentId);
@@ -139,7 +153,6 @@ const ScoreEntryPage = () => {
       );
       return;
     }
-
     setSaving(true);
     setApiError(null);
     try {
@@ -180,7 +193,6 @@ const ScoreEntryPage = () => {
       {!noClasses && (
         <div className="space-y-6 animate-fade-in">
 
-          {/* Header */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Score Entry</h2>
@@ -203,7 +215,6 @@ const ScoreEntryPage = () => {
             <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{apiError}</div>
           )}
 
-          {/* Term + Academic Year — auto-set to current Nigerian term/year */}
           <TermSelector
             term={term}
             academicYear={academicYear}
@@ -211,7 +222,6 @@ const ScoreEntryPage = () => {
             onAcademicYearChange={setAcademicYear}
           />
 
-          {/* Class + Subject selectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="ledger-card p-5">
               <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Select Class</label>
@@ -233,11 +243,12 @@ const ScoreEntryPage = () => {
                 <option value="">— Choose a subject —</option>
                 {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ''}</option>)}
               </select>
-              {selectedClassId && subjects.length === 0 && <p className="mt-2 text-xs text-on-tertiary-container">No subjects yet — add subjects first</p>}
+              {selectedClassId && subjects.length === 0 && (
+                <p className="mt-2 text-xs text-on-tertiary-container">No subjects yet — add subjects first</p>
+              )}
             </div>
           </div>
 
-          {/* Score table */}
           {selectedClassId && selectedSubjectId && (
             <>
               {loadingData ? (
