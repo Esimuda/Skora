@@ -51,9 +51,13 @@ export const SubmitResultsPage = () => {
     setLoadingResults(true);
     setApiError(null);
     Promise.all([
-      api.get<ComputedResult[]>(`/schools/${schoolId}/results/${selectedClassId}/computed?term=${term}&academicYear=${encodeURIComponent(academicYear)}`),
+      api.get<any>(`/schools/${schoolId}/results/${selectedClassId}/computed?term=${term}&academicYear=${encodeURIComponent(academicYear)}`),
       api.get<ClassResultStatus>(`/schools/${schoolId}/results/${selectedClassId}/status?term=${term}&academicYear=${encodeURIComponent(academicYear)}`).catch(() => null),
-    ]).then(([results, status]) => {
+    ]).then(([resultsResponse, status]) => {
+      // Handle both plain array (teacher) and { data, watermarked } object (principal)
+      const results: ComputedResult[] = Array.isArray(resultsResponse)
+        ? resultsResponse
+        : (resultsResponse?.data ?? []);
       setClassResults(results);
       setResultStatus(status);
     }).catch((e) => {
