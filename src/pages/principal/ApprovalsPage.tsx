@@ -153,9 +153,13 @@ export const ApprovalsPage = () => {
     setApiError(null);
     try {
       const yearParam = encodeURIComponent(result.academicYear);
-      const data = await api.get<ComputedStudent[]>(
+      const response = await api.get<any>(
         `/schools/${schoolId}/results/${result.classId}/computed?term=${result.term}&academicYear=${yearParam}`,
       );
+      // Handle both plain array and { data, watermarked } object
+      const data: ComputedStudent[] = Array.isArray(response)
+        ? response
+        : (response?.data ?? []);
       // Sort by position
       const sorted = [...data].sort((a, b) => a.position - b.position);
       setReviewStudents(sorted);
