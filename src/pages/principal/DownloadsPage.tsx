@@ -232,12 +232,16 @@ export const DownloadsPage = () => {
     setLoadingResults(true);
     const yearParam = encodeURIComponent(selectedYear);
     Promise.all([
-      api.get<ApiComputedResult[]>(
+      api.get<any>(
         `/schools/${schoolId}/results/${selectedClassId}/computed?term=${selectedTerm}&academicYear=${yearParam}`,
       ),
       api.get<Subject[]>(`/schools/${schoolId}/classes/${selectedClassId}/subjects`),
     ])
-      .then(([results, subjectsData]) => {
+      .then(([response, subjectsData]) => {
+        // Handle both plain array and { data, watermarked } object
+        const results: ApiComputedResult[] = Array.isArray(response)
+          ? response
+          : (response?.data ?? []);
         setClassResults(results);
         setSubjects(subjectsData);
       })
