@@ -27,7 +27,7 @@ export class ResultsController {
   }
 
   @Get()
-  @Roles('school_admin', 'admin', 'super_admin')
+  @Roles('school_admin', 'admin', 'super_admin', 'teacher')
   findAll(
     @Param('schoolId') schoolId: string,
     @Query('status') status?: string,
@@ -38,7 +38,7 @@ export class ResultsController {
   }
 
   @Get(':classId/computed')
-  @Roles('school_admin', 'admin', 'super_admin')
+  @Roles('school_admin', 'admin', 'super_admin', 'teacher')
   computed(
     @Param('schoolId') schoolId: string,
     @Param('classId') classId: string,
@@ -46,13 +46,10 @@ export class ResultsController {
     @Query('academicYear') academicYear: string,
     @Request() req: any,
   ) {
-    // source=portal means a valid PIN was used — return clean (unwatermarked) data
-    // Any other source (principal preview) gets flagged as watermarked
     const isPortal = req.query.source === 'portal';
     const pinUseId = req.query.pinUseId as string | undefined;
 
     if (!isPortal || !pinUseId) {
-      // Return data but flag it so the frontend renders watermark overlays
       return this.service.getComputedResults(schoolId, classId, term, academicYear)
         .then(data => ({ data, watermarked: true }));
     }
@@ -62,7 +59,7 @@ export class ResultsController {
   }
 
   @Get(':classId/status')
-  @Roles('school_admin', 'admin', 'super_admin')
+  @Roles('school_admin', 'admin', 'super_admin', 'teacher')
   findOne(
     @Param('schoolId') schoolId: string,
     @Param('classId') classId: string,
