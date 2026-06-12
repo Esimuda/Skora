@@ -71,9 +71,13 @@ export const CommentsPage = () => {
     setLoadingResults(true);
     setApiError(null);
     Promise.all([
-      api.get<ComputedResult[]>(`/schools/${schoolId}/results/${selectedClassId}/computed?term=${term}&academicYear=${encodeURIComponent(academicYear)}`),
+      api.get<any>(`/schools/${schoolId}/results/${selectedClassId}/computed?term=${term}&academicYear=${encodeURIComponent(academicYear)}`),
       api.get<Comment[]>(`/schools/${schoolId}/comments/by-class/${selectedClassId}?term=${term}&academicYear=${encodeURIComponent(academicYear)}`),
-    ]).then(([results, cmts]) => {
+    ]).then(([resultsResponse, cmts]) => {
+      // Handle both plain array (teacher) and { data, watermarked } object (principal)
+      const results: ComputedResult[] = Array.isArray(resultsResponse)
+        ? resultsResponse
+        : (resultsResponse?.data ?? []);
       setClassResults(results);
       setComments(cmts);
       const saved = new Set<string>(cmts.filter((c) => c.teacherComment?.trim()).map((c) => c.studentId));
@@ -150,7 +154,6 @@ export const CommentsPage = () => {
       {!noClasses && (
       <div className="space-y-6 animate-fade-in">
 
-        {/* Header */}
         <div>
           <h2 className="font-headline font-extrabold text-3xl text-primary tracking-tight">Teacher Comments</h2>
           <p className="text-on-surface-variant text-sm mt-1">Write a comment for each student — appears on their result sheet</p>
@@ -160,7 +163,6 @@ export const CommentsPage = () => {
           <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm">{apiError}</div>
         )}
 
-        {/* Selectors */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="ledger-card p-5">
             <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Select Class</label>
@@ -200,7 +202,6 @@ export const CommentsPage = () => {
           </div>
         ) : (
           <>
-            {/* Progress */}
             <div className="ledger-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-on-surface">Comments Progress</span>
@@ -214,20 +215,21 @@ export const CommentsPage = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-[260px_1fr] gap-6">
+            {classResults.length === 0 ? (
+              <div className="ledger-card flex flex-col items-center justify-center py-20 text-on-surface-variant">
+                <Icon name="edit_note" className="text-5xl text-outline/30 mb-4" />
+                <p className="font-headline font-bold text-lg">No results found for this term</p>
+                <p className="text-sm mt-1">Enter and save scores first so student positions can be calculated</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
 
-              {/* Student list */}
-              <div className="ledger-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-outline-variant/10">
-                  <h3 className="font-headline font-bold text-sm text-primary">Students by Position</h3>
-                  <p className="text-xs text-on-surface-variant mt-0.5">Sorted by class performance</p>
-                </div>
-                {classResults.length === 0 ? (
-                  <div className="p-6 text-center text-on-surface-variant text-sm">
-                    <p>No results found</p>
-                    <p className="mt-1 text-xs">Enter scores first so positions can be calculated</p>
+                {/* Student list */}
+                <div className="ledger-card overflow-hidden">
+                  <div className="px-5 py-4 border-b border-outline-variant/10">
+                    <h3 className="font-headline font-bold text-sm text-primary">Students by Position</h3>
+                    <p className="text-xs text-on-surface-variant mt-0.5">Sorted by class performance</p>
                   </div>
-                ) : (
                   <div className="divide-y divide-outline-variant/10 overflow-y-auto max-h-[500px]">
                     {classResults.map((result) => {
                       const isSelected = selectedStudentId === result.student.id;
@@ -252,92 +254,92 @@ export const CommentsPage = () => {
                       );
                     })}
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Comment panel */}
-              <div className="ledger-card overflow-hidden">
-                {!selectedResult ? (
-                  <div className="flex flex-col items-center justify-center h-80 text-on-surface-variant">
-                    <Icon name="draw" className="text-5xl text-outline/30 mb-4" />
-                    <p className="font-headline font-bold text-lg">Select a student to write their comment</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="p-5 border-b border-outline-variant/10 bg-surface-container-low">
-                      <div className="flex items-start justify-between gap-4">
+                {/* Comment panel */}
+                <div className="ledger-card overflow-hidden">
+                  {!selectedResult ? (
+                    <div className="flex flex-col items-center justify-center h-80 text-on-surface-variant">
+                      <Icon name="draw" className="text-5xl text-outline/30 mb-4" />
+                      <p className="font-headline font-bold text-lg">Select a student to write their comment</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-5 border-b border-outline-variant/10 bg-surface-container-low">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-headline font-bold text-lg text-primary">
+                              {selectedResult.student.lastName} {selectedResult.student.firstName}
+                              {selectedResult.student.middleName ? ` ${selectedResult.student.middleName}` : ''}
+                            </h3>
+                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/5 text-primary">{formatPosition(selectedResult.position)} Position</span>
+                              <span className="text-xs text-on-surface-variant">{selectedResult.percentage.toFixed(1)}%</span>
+                              <span className="text-xs text-on-surface-variant">{selectedResult.totalScore}/{selectedResult.totalPossible} marks</span>
+                              <span className="text-xs text-on-surface-variant">Class of {selectedResult.totalStudents}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleSave}
+                            disabled={saveStatus === 'saving'}
+                            className={`btn-primary text-sm flex items-center gap-2 disabled:opacity-60 flex-shrink-0 ${saveStatus === 'saved' ? 'from-secondary to-secondary bg-secondary' : ''}`}
+                          >
+                            <Icon name={saveStatus === 'saved' ? 'check' : 'save'} />
+                            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-5 space-y-5">
+                        <div className="p-4 bg-surface-container-low rounded-xl">
+                          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Suggested based on performance</p>
+                          <p className="text-sm text-on-surface italic mb-3">"{getSuggestedComment(selectedResult)}"</p>
+                          <button onClick={() => { setCommentText(getSuggestedComment(selectedResult)); setSaveStatus('idle'); }} className="text-xs text-primary font-bold hover:underline">Use this comment</button>
+                        </div>
+
                         <div>
-                          <h3 className="font-headline font-bold text-lg text-primary">
-                            {selectedResult.student.lastName} {selectedResult.student.firstName}
-                            {selectedResult.student.middleName ? ` ${selectedResult.student.middleName}` : ''}
-                          </h3>
-                          <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/5 text-primary">{formatPosition(selectedResult.position)} Position</span>
-                            <span className="text-xs text-on-surface-variant">{selectedResult.percentage.toFixed(1)}%</span>
-                            <span className="text-xs text-on-surface-variant">{selectedResult.totalScore}/{selectedResult.totalPossible} marks</span>
-                            <span className="text-xs text-on-surface-variant">Class of {selectedResult.totalStudents}</span>
+                          <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Teacher's Comment</label>
+                          <textarea
+                            value={commentText}
+                            onChange={(e) => { setCommentText(e.target.value); setSaveStatus('idle'); }}
+                            rows={4}
+                            placeholder="Write your comment for this student..."
+                            className="w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all resize-none"
+                          />
+                          <p className="text-xs text-on-surface-variant mt-1.5">{commentText.length} characters</p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3">Quick Comments</p>
+                          <div className="space-y-2">
+                            {QUICK_COMMENTS.map((qc, i) => (
+                              <button
+                                key={i}
+                                onClick={() => { setCommentText(qc); setSaveStatus('idle'); }}
+                                className={`w-full text-left text-xs p-3 rounded-xl border-2 transition-colors ${commentText === qc ? 'border-primary bg-primary/5 text-primary font-medium' : 'border-outline-variant/20 hover:border-primary/30 hover:bg-surface-container-low text-on-surface-variant'}`}
+                              >
+                                "{qc}"
+                              </button>
+                            ))}
                           </div>
                         </div>
-                        <button
-                          onClick={handleSave}
-                          disabled={saveStatus === 'saving'}
-                          className={`btn-primary text-sm flex items-center gap-2 disabled:opacity-60 flex-shrink-0 ${saveStatus === 'saved' ? 'from-secondary to-secondary bg-secondary' : ''}`}
-                        >
-                          <Icon name={saveStatus === 'saved' ? 'check' : 'save'} />
-                          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
-                        </button>
-                      </div>
-                    </div>
 
-                    <div className="p-5 space-y-5">
-                      <div className="p-4 bg-surface-container-low rounded-xl">
-                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Suggested based on performance</p>
-                        <p className="text-sm text-on-surface italic mb-3">"{getSuggestedComment(selectedResult)}"</p>
-                        <button onClick={() => { setCommentText(getSuggestedComment(selectedResult)); setSaveStatus('idle'); }} className="text-xs text-primary font-bold hover:underline">Use this comment</button>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Teacher's Comment</label>
-                        <textarea
-                          value={commentText}
-                          onChange={(e) => { setCommentText(e.target.value); setSaveStatus('idle'); }}
-                          rows={4}
-                          placeholder="Write your comment for this student..."
-                          className="w-full bg-surface-container-highest border-none rounded-xl px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary-fixed-dim transition-all resize-none"
-                        />
-                        <p className="text-xs text-on-surface-variant mt-1.5">{commentText.length} characters</p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3">Quick Comments</p>
-                        <div className="space-y-2">
-                          {QUICK_COMMENTS.map((qc, i) => (
-                            <button
-                              key={i}
-                              onClick={() => { setCommentText(qc); setSaveStatus('idle'); }}
-                              className={`w-full text-left text-xs p-3 rounded-xl border-2 transition-colors ${commentText === qc ? 'border-primary bg-primary/5 text-primary font-medium' : 'border-outline-variant/20 hover:border-primary/30 hover:bg-surface-container-low text-on-surface-variant'}`}
-                            >
-                              "{qc}"
-                            </button>
-                          ))}
+                        <div className="flex gap-3 pt-2">
+                          <button onClick={handleSave} className="btn-primary text-sm flex items-center gap-2"><Icon name="save" /> Save Comment</button>
+                          <button
+                            onClick={() => { handleSave(); setTimeout(handleNextStudent, 500); }}
+                            disabled={classResults.findIndex((r) => r.student.id === selectedStudentId) === classResults.length - 1}
+                            className="btn-ghost text-sm disabled:opacity-40 flex items-center gap-2"
+                          >
+                            Save & Next <Icon name="arrow_forward" />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex gap-3 pt-2">
-                        <button onClick={handleSave} className="btn-primary text-sm flex items-center gap-2"><Icon name="save" /> Save Comment</button>
-                        <button
-                          onClick={() => { handleSave(); setTimeout(handleNextStudent, 500); }}
-                          disabled={classResults.findIndex((r) => r.student.id === selectedStudentId) === classResults.length - 1}
-                          className="btn-ghost text-sm disabled:opacity-40 flex items-center gap-2"
-                        >
-                          Save & Next <Icon name="arrow_forward" />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
