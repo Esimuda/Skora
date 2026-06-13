@@ -167,8 +167,8 @@ export const ModernResultSheet: React.FC<Props> = ({
       </div>
 
       {/* ── STUDENT PROFILE ── */}
-      <div style={{ padding: '12px 16mm', backgroundColor: '#ffffff', marginBottom: '2px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 16px' }}>
+      <div style={{ padding: '12px 16mm', backgroundColor: '#ffffff', marginBottom: '2px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 16px' }}>
           {[
             ['Student Name', studentFullName.toUpperCase()],
             ['Admission No.', student.admissionNumber],
@@ -182,6 +182,14 @@ export const ModernResultSheet: React.FC<Props> = ({
               <div style={{ fontSize: '10px', fontWeight: 700, color: '#00113a', marginTop: '1px' }}>{value}</div>
             </div>
           ))}
+        </div>
+        {/* ── PASSPORT PHOTO ── */}
+        <div style={{ flexShrink: 0, width: '60px', height: '72px', border: '1.5px solid #c5c6d2', backgroundColor: '#f3f4f5', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {student.photoUrl ? (
+            <img src={student.photoUrl} alt="Passport" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <span style={{ fontSize: '7px', color: '#9a9ba8', textAlign: 'center', lineHeight: 1.3, padding: '4px' }}>No Photo</span>
+          )}
         </div>
       </div>
 

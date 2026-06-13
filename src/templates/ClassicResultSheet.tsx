@@ -163,8 +163,8 @@ export const ClassicResultSheet: React.FC<Props> = ({
         </div>
 
         {/* ── STUDENT INFO ── */}
-        <div style={{ marginBottom: '10px', backgroundColor: '#f3f4f5', padding: '8px 10px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
+        <div style={{ marginBottom: '10px', backgroundColor: '#f3f4f5', padding: '8px 10px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
             {[
               ['Student Name', studentFullName.toUpperCase()],
               ['Admission No.', student.admissionNumber],
@@ -178,6 +178,14 @@ export const ClassicResultSheet: React.FC<Props> = ({
                 <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#00113a', marginTop: '1px' }}>{value}</div>
               </div>
             ))}
+          </div>
+          {/* ── PASSPORT PHOTO ── */}
+          <div style={{ flexShrink: 0, width: '60px', height: '72px', border: '1.5px solid #c5c6d2', backgroundColor: '#e8e9ed', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {student.photoUrl ? (
+              <img src={student.photoUrl} alt="Passport" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : (
+              <span style={{ fontSize: '7px', color: '#9a9ba8', textAlign: 'center', lineHeight: 1.3, padding: '4px' }}>No Photo</span>
+            )}
           </div>
         </div>
 

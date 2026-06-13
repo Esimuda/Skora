@@ -167,20 +167,30 @@ export const HybridResultSheet: React.FC<Props> = ({
         <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#735c00', fontWeight: 700, letterSpacing: '1.5px', marginBottom: '6px' }}>
           Student Particulars
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
-          {[
-            ['Full Name', studentFullName.toUpperCase()],
-            ['Admission No.', student.admissionNumber],
-            ['Class / Level', student.classId],
-            ['Term', `${getTermName(term)} Term`],
-            ['Session', academicYear],
-            ['Gender', student.gender === 'male' ? 'Male' : 'Female'],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <div style={{ fontSize: '7px', color: '#757682', marginBottom: '1px' }}>{label}</div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#00113a' }}>{value}</div>
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px' }}>
+            {[
+              ['Full Name', studentFullName.toUpperCase()],
+              ['Admission No.', student.admissionNumber],
+              ['Class / Level', student.classId],
+              ['Term', `${getTermName(term)} Term`],
+              ['Session', academicYear],
+              ['Gender', student.gender === 'male' ? 'Male' : 'Female'],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div style={{ fontSize: '7px', color: '#757682', marginBottom: '1px' }}>{label}</div>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#00113a' }}>{value}</div>
+              </div>
+            ))}
+          </div>
+          {/* ── PASSPORT PHOTO ── */}
+          <div style={{ flexShrink: 0, width: '60px', height: '72px', border: '1.5px solid #c5c6d2', backgroundColor: '#e8e9ed', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {student.photoUrl ? (
+              <img src={student.photoUrl} alt="Passport" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : (
+              <span style={{ fontSize: '7px', color: '#9a9ba8', textAlign: 'center', lineHeight: 1.3, padding: '4px' }}>No Photo</span>
+            )}
+          </div>
         </div>
       </div>
 
