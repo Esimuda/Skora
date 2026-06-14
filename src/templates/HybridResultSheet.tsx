@@ -172,8 +172,8 @@ export const HybridResultSheet: React.FC<Props> = ({
             {[
               ['Full Name', studentFullName.toUpperCase()],
               ['Admission No.', student.admissionNumber],
-              ['Class / Level', student.classId],
-              ['Term', `${getTermName(term)} Term`],
+              ['Class / Level', (student as any).className ?? student.classId],
+              ['Term', getTermName(term)],
               ['Session', academicYear],
               ['Gender', student.gender === 'male' ? 'Male' : 'Female'],
             ].map(([label, value]) => (
@@ -247,7 +247,7 @@ export const HybridResultSheet: React.FC<Props> = ({
           <tbody>
             {scores.map((score, idx) => (
               <tr key={idx}>
-                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectId}</td>
+                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectName ?? score.subjectId}</td>
                 <td style={cellStyle}>{score.ca1}</td>
                 <td style={cellStyle}>{score.ca2}</td>
                 <td style={cellStyle}>{score.exam}</td>
@@ -349,7 +349,7 @@ export const HybridResultSheet: React.FC<Props> = ({
           {school.name}
         </div>
         <div style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {academicYear} · {getTermName(term)} Term · Powered by Skora RMS
+          {academicYear} · {getTermName(term)} · Powered by Skora RMS
         </div>
       </div>
 

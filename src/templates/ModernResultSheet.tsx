@@ -155,7 +155,7 @@ export const ModernResultSheet: React.FC<Props> = ({
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', fontStyle: 'italic', color: '#fed65b', marginBottom: '4px' }}>
-            {getTermName(term)} Term Report
+            {getTermName(term)} Report
           </div>
           <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
             {academicYear} Academic Session
@@ -172,8 +172,8 @@ export const ModernResultSheet: React.FC<Props> = ({
           {[
             ['Student Name', studentFullName.toUpperCase()],
             ['Admission No.', student.admissionNumber],
-            ['Class', student.classId],
-            ['Term', `${getTermName(term)} Term`],
+            ['Class', (student as any).className ?? student.classId],
+            ['Term', getTermName(term)],
             ['Session', academicYear],
             ['Gender', student.gender === 'male' ? 'Male' : 'Female'],
           ].map(([label, value]) => (
@@ -232,7 +232,7 @@ export const ModernResultSheet: React.FC<Props> = ({
           <tbody>
             {scores.map((score, idx) => (
               <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f3f4f5', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>
-                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectId}</td>
+                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectName ?? score.subjectId}</td>
                 <td style={cellStyle}>{score.ca1}</td>
                 <td style={cellStyle}>{score.ca2}</td>
                 <td style={cellStyle}>{score.exam}</td>

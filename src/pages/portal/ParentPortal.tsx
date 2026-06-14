@@ -145,17 +145,8 @@ export const ParentPortal = () => {
 
   return (
     <>
-      {/* Print-only styles */}
-      <style>{`
-        @media print {
-          #skora-no-print { display: none !important; }
-          #skora-print-area { display: block !important; }
-        }
-        #skora-print-area { display: none; }
-      `}</style>
-
       {/* Hidden print area — always in DOM, only visible when printing */}
-      <div id="skora-print-area" ref={printRef}>
+      <div id="skora-print-area" ref={printRef} style={{ display: 'none' }}>
         {result && resultSchool && (
           <FullResultSheet result={result} school={resultSchool} term={term} />
         )}

@@ -87,3 +87,29 @@
     @apply text-on-surface-variant hover:bg-surface-container-highest/30 rounded-r-full mr-4 transition-all duration-200 hover:translate-x-1;
   }
 }
+/* ── PRINT STYLES (parent portal result download) ── */
+@media print {
+  /* Hide browser chrome — URL bar, date, page number */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* Hide everything except the result sheet */
+  #skora-no-print {
+    display: none !important;
+  }
+
+  #skora-print-area {
+    display: block !important;
+  }
+
+  /* Scale result to fit exactly one A4 page */
+  #skora-print-area > * {
+    transform-origin: top left;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+}
