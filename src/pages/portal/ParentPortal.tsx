@@ -145,11 +145,11 @@ export const ParentPortal = () => {
 
   return (
     <>
-      {/* Print-only styles — hides everything except the result sheet */}
+      {/* Print-only styles */}
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          #skora-print-area { display: block !important; position: fixed; top: 0; left: 0; width: 100%; }
+          #skora-no-print { display: none !important; }
+          #skora-print-area { display: block !important; }
         }
         #skora-print-area { display: none; }
       `}</style>
@@ -161,7 +161,7 @@ export const ParentPortal = () => {
         )}
       </div>
 
-      <div className="min-h-screen bg-surface flex flex-col">
+      <div id="skora-no-print" className="min-h-screen bg-surface flex flex-col">
         {/* Header */}
         <div className="bg-primary text-on-primary px-6 py-4 flex items-center justify-between shadow-lg">
           <div>
