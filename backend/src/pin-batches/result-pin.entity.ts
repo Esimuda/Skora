@@ -44,6 +44,14 @@ export class ResultPin {
   @Column({ default: false })
   isActive!: boolean;
 
+  // Set on first use — PIN is permanently locked to this student after that.
+  // Any attempt to use the same PIN for a different student is rejected.
+  @Column({ nullable: true })
+  lockedToStudentId!: string | null;
+
+  @Column({ nullable: true })
+  lockedToStudentName!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

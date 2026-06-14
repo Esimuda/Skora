@@ -293,17 +293,48 @@ export class PinBatchesService {
     academicYear: string;
     ipAddress: string;
   }): Promise<{ valid: boolean; usesRemaining?: number; reason?: string }> {
-    const pin = await this.generator.validatePin({
+    const found = await this.generator.validatePin({
       schoolId: opts.schoolId,
       rawPin: opts.rawPin,
       term: opts.term,
       academicYear: opts.academicYear,
     });
 
-    if (!pin) {
+    // PIN not found at all — wrong number
+    if (!found) {
       return {
         valid: false,
-        reason: 'Invalid PIN. Please check your scratch card and try again.',
+        reason:
+          'This scratch card number is not valid. Please check that you typed the correct numbers, or get a valid scratch card from your school.',
+      };
+    }
+
+    const { pin, status } = found;
+
+    // PIN exists but batch not yet activated
+    if (status === 'inactive') {
+      return {
+        valid: false,
+        reason:
+          'This scratch card has not been activated yet. Please contact your school to confirm payment was received.',
+      };
+    }
+
+    // PIN exists but all 5 uses are gone
+    if (status === 'exhausted') {
+      return {
+        valid: false,
+        reason:
+          'This scratch card has exceeded its limit of 5 uses. Please get a new scratch card if you want to keep viewing the results.',
+      };
+    }
+
+    // PIN is valid — check student lock
+    if (pin.lockedToStudentId && pin.lockedToStudentId !== opts.studentId) {
+      return {
+        valid: false,
+        reason:
+          `This scratch card has already been used by another student (${pin.lockedToStudentName ?? 'a different student'}). Each scratch card can only be used for one student. Please get a separate scratch card for ${opts.studentName}.`,
       };
     }
 
@@ -313,8 +344,14 @@ export class PinBatchesService {
     if (usesRemaining === -1) {
       return {
         valid: false,
-        reason: 'This PIN has been fully used. Please use a different scratch card.',
+        reason:
+          'This scratch card has exceeded its limit of 5 uses. Please get a new scratch card if you want to keep viewing the results.',
       };
+    }
+
+    // Lock PIN to this student on first use
+    if (!pin.lockedToStudentId) {
+      await this.generator.lockPinToStudent(pin.id, opts.studentId, opts.studentName);
     }
 
     // Log the use

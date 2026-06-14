@@ -88,29 +88,43 @@ export class PinGenerator {
       .execute();
   }
 
-  // Validates a submitted PIN against all active PINs for this school + term.
+  // Validates a submitted PIN. Returns the PIN + a status so the caller can
+  // return a specific error message for each scenario.
   async validatePin(opts: {
     schoolId: string;
     rawPin: string;
     term: string;
     academicYear: string;
-  }): Promise<ResultPin | null> {
+  }): Promise<{ pin: ResultPin; status: 'valid' | 'exhausted' | 'inactive' } | null> {
+    // Search ALL pins for this school+term (including exhausted ones) so we
+    // can distinguish "wrong PIN" from "PIN exhausted" for the parent.
     const candidates = await this.repo
       .createQueryBuilder('p')
       .addSelect('p.pin')
       .where('p.schoolId = :schoolId', { schoolId: opts.schoolId })
-      .andWhere('p.isActive = true')
-      .andWhere('p.usesRemaining > 0')
       .andWhere('p.term = :term', { term: opts.term })
       .andWhere('p.academicYear = :academicYear', { academicYear: opts.academicYear })
       .getMany();
 
     for (const candidate of candidates) {
       const match = await bcrypt.compare(opts.rawPin, candidate.pin);
-      if (match) return candidate;
+      if (match) {
+        if (!candidate.isActive) return { pin: candidate, status: 'inactive' };
+        if (candidate.usesRemaining === 0) return { pin: candidate, status: 'exhausted' };
+        return { pin: candidate, status: 'valid' };
+      }
     }
 
     return null;
+  }
+
+  // Locks a PIN to a specific student after first use.
+  // Subsequent uses of the same PIN for a different student are rejected.
+  async lockPinToStudent(pinId: string, studentId: string, studentName: string): Promise<void> {
+    await this.repo.update(pinId, {
+      lockedToStudentId: studentId,
+      lockedToStudentName: studentName,
+    });
   }
 
   // Atomic decrement — prevents race conditions on concurrent PIN validation.
