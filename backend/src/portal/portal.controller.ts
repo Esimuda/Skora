@@ -121,10 +121,22 @@ export class PortalController {
     const studentResult = allResults.find((r) => r.student.id === dto.studentId);
     if (!studentResult) throw new BadRequestException('Result not found for this student and term');
 
+    const school = await this.schools.findOne(dto.schoolId);
+
     return {
       valid: true,
       usesRemaining: result.usesRemaining,
       result: studentResult,
+      school: {
+        id: school.id,
+        name: school.name,
+        address: school.address,
+        email: school.email,
+        phoneNumber: school.phoneNumber,
+        motto: school.motto,
+        logo: school.logo,
+        templateId: school.templateId,
+      },
     };
   }
 }
