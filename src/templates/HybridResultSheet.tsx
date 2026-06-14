@@ -247,7 +247,7 @@ export const HybridResultSheet: React.FC<Props> = ({
           <tbody>
             {scores.map((score, idx) => (
               <tr key={idx}>
-                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectName ?? score.subjectId}</td>
+                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{(score as any).subjectName ?? score.subjectId}</td>
                 <td style={cellStyle}>{score.ca1}</td>
                 <td style={cellStyle}>{score.ca2}</td>
                 <td style={cellStyle}>{score.exam}</td>

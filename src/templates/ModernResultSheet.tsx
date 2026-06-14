@@ -232,7 +232,7 @@ export const ModernResultSheet: React.FC<Props> = ({
           <tbody>
             {scores.map((score, idx) => (
               <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f3f4f5', borderBottom: '0.5px solid rgba(197,198,210,0.3)' }}>
-                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{score.subjectName ?? score.subjectId}</td>
+                <td style={{ ...cellStyleLeft, fontWeight: 600, color: '#00113a' }}>{(score as any).subjectName ?? score.subjectId}</td>
                 <td style={cellStyle}>{score.ca1}</td>
                 <td style={cellStyle}>{score.ca2}</td>
                 <td style={cellStyle}>{score.exam}</td>
