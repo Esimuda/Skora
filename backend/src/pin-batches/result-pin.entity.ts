@@ -25,7 +25,7 @@ export class ResultPin {
 
   // Plain PIN stored temporarily for PDF card generation only.
   // Cleared to null immediately after the school downloads the cards PDF.
-  @Column({ nullable: true, select: false })
+  @Column({ type: 'varchar', nullable: true, select: false })
   pinDisplay!: string | null;
 
   @Column({ default: 5 })
@@ -46,10 +46,10 @@ export class ResultPin {
 
   // Set on first use — PIN is permanently locked to this student after that.
   // Any attempt to use the same PIN for a different student is rejected.
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'varchar', nullable: true, default: null })
   lockedToStudentId!: string | null;
 
-  @Column({ nullable: true, default: null })
+  @Column({ type: 'varchar', nullable: true, default: null })
   lockedToStudentName!: string | null;
 
   @CreateDateColumn()
