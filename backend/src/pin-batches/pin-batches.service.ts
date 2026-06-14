@@ -267,7 +267,7 @@ export class PinBatchesService {
       .where('p.batchId = :batchId', { batchId })
       .getMany();
 
-    const rawPins = pins.map((p) => p.pinDisplay).filter(Boolean);
+    const rawPins = pins.map((p) => p.pinDisplay).filter((p): p is string => p !== null && p !== undefined);
 
     if (rawPins.length === 0) {
       throw new BadRequestException(
