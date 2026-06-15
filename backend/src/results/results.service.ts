@@ -12,6 +12,7 @@ import { ScoresService } from '../scores/scores.service';
 import { PsychometricService } from '../psychometric/psychometric.service';
 import { CommentsService } from '../comments/comments.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AttendanceService } from '../attendance/attendance.service';
 import { TeachersService } from '../teachers/teachers.service';
 import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
@@ -30,6 +31,7 @@ export class ResultsService {
     private teachers: TeachersService,
     private mail: MailService,
     private users: UsersService,
+    private attendance: AttendanceService,
   ) {}
 
   async submit(schoolId: string, dto: SubmitResultDto, teacherUser: any) {
@@ -251,14 +253,26 @@ export class ResultsService {
   }
 
   async getComputedResults(schoolId: string, classId: string, term: string, academicYear: string) {
-    const studentList = await this.students.findByClass(schoolId, classId);
-    const subjectList = await this.subjects.findAll(schoolId, classId);
-    const scoreList = await this.scores.findByClass(schoolId, classId, term, academicYear);
-    const psychoList = await this.psychometric.findByClass(schoolId, classId, term, academicYear);
-    const commentList = await this.comments.findByClass(schoolId, classId, term, academicYear);
+    const [studentList, subjectList, scoreList, psychoList, commentList, attendanceList, classEntity, schoolUsers] =
+      await Promise.all([
+        this.students.findByClass(schoolId, classId),
+        this.subjects.findAll(schoolId, classId),
+        this.scores.findByClass(schoolId, classId, term, academicYear),
+        this.psychometric.findByClass(schoolId, classId, term, academicYear),
+        this.comments.findByClass(schoolId, classId, term, academicYear),
+        this.attendance.findByClass(schoolId, classId, term, academicYear),
+        this.classes.findOne(schoolId, classId).catch(() => null),
+        this.users.findBySchool(schoolId),
+      ]);
+
+    const className = classEntity?.name ?? classId;
+    const teacherName = classEntity?.teacherName ?? null;
+    const principal = schoolUsers.find((u) => u.role === 'school_admin');
+    const principalName = principal ? `${principal.firstName} ${principal.lastName}` : null;
 
     // Build a quick lookup map so we don't iterate subjectList per student
     const subjectMap = new Map(subjectList.map((sub) => [sub.id, sub]));
+    const attendanceMap = new Map(attendanceList.map((a) => [a.studentId, a]));
 
     const studentResults = studentList.map((student) => {
       const studentScores = scoreList
@@ -271,12 +285,16 @@ export class ResultsService {
       const totalScore = studentScores.reduce((sum, s) => sum + s.total, 0);
       const totalPossible = subjectList.length * 100;
       const percentage = totalPossible > 0 ? (totalScore / totalPossible) * 100 : 0;
+      const att = attendanceMap.get(student.id);
 
       return {
-        student,
+        student: { ...student, className },
         scores: studentScores,
         psychometricAssessment: psychoList.find((p) => p.studentId === student.id) ?? null,
         comment: commentList.find((c) => c.studentId === student.id) ?? null,
+        attendance: att ? { daysPresent: att.daysPresent, daysSchoolOpened: att.daysSchoolOpened } : null,
+        teacherName,
+        principalName,
         totalScore,
         totalPossible,
         percentage,

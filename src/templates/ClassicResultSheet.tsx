@@ -22,6 +22,7 @@ export const ClassicResultSheet: React.FC<Props> = ({
     student, scores, psychometricAssessment, comment,
     totalScore, totalPossible, percentage, position,
     totalStudents, classHighest, classAverage, term, academicYear,
+    attendance, teacherName, principalName,
   } = result;
 
   const studentFullName = formatFullName(student.firstName, student.lastName, student.middleName);
@@ -312,18 +313,22 @@ export const ClassicResultSheet: React.FC<Props> = ({
               {comment?.teacherComment || '—'}
             </div>
             <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '10px', paddingTop: '5px', fontSize: '7.5px', color: '#757682' }}>
-              Signature: ___________________
+              {teacherName && <div style={{ fontWeight: 700, color: '#00113a', marginBottom: '3px' }}>{teacherName}</div>}
+              Class Teacher's Signature: ___________________
             </div>
           </div>
           <div style={{ backgroundColor: '#f3f4f5', padding: '8px' }}>
             <div style={{ fontSize: '7.5px', textTransform: 'uppercase', color: '#757682', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '5px' }}>
-              {school.principalName ? `${school.principalName}'s Comment` : "Principal's Comment"}
+              Principal's Comment
             </div>
             <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#191c1d', minHeight: '30px', lineHeight: 1.5 }}>
               {comment?.principalComment || '—'}
             </div>
             <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '10px', paddingTop: '5px', fontSize: '7.5px', color: '#757682', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Signature: ___________________</span>
+              <div>
+                {principalName && <div style={{ fontWeight: 700, color: '#00113a', marginBottom: '3px' }}>{principalName}</div>}
+                <span>Principal's Signature: ___________________</span>
+              </div>
               <span>[School Stamp]</span>
             </div>
           </div>

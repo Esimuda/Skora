@@ -12,6 +12,7 @@ import { CommentsModule } from '../comments/comments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TeachersModule } from '../teachers/teachers.module';
 import { UsersModule } from '../users/users.module';
+import { AttendanceModule } from '../attendance/attendance.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UsersModule } from '../users/users.module';
     NotificationsModule,
     TeachersModule,
     UsersModule,
+    AttendanceModule,
   ],
   providers: [ResultsService],
   controllers: [ResultsController],
