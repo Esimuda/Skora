@@ -119,51 +119,51 @@ export const ModernResultSheet: React.FC<Props> = ({
       <div style={{ position: 'relative', zIndex: 1 }}>
 
       {/* ── HEADER HERO ── */}
-  
       <div style={{
         background: 'linear-gradient(135deg, #00113a 0%, #002366 100%)',
-        padding: '18px 16mm',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        padding: '16px 16mm 12px',
         position: 'relative',
         overflow: 'hidden',
       }}>
         {/* Decorative circle */}
         <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '140px', height: '140px', borderRadius: '50%', backgroundColor: 'rgba(254,214,91,0.08)' }} />
 
+        {/* Logo + Name row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* Logo — large */}
           {school.logo ? (
-            <div style={{ width: '52px', height: '52px', backgroundColor: '#ffffff', borderRadius: '8px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '72px', height: '72px', backgroundColor: '#ffffff', borderRadius: '8px', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <img src={school.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
           ) : (
-            <div style={{ width: '52px', height: '52px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: '22px', fontWeight: 900, color: '#fed65b' }}>S</span>
+            <div style={{ width: '72px', height: '72px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: '28px', fontWeight: 900, color: '#fed65b' }}>{(school.name ?? 'S')[0].toUpperCase()}</span>
             </div>
           )}
-          <div>
-            <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '18px', fontWeight: 700, color: '#ffffff', lineHeight: 1.1 }}>
+          {/* School name — centered in remaining space */}
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '22px', fontWeight: 900, color: '#ffffff', lineHeight: 1.1, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {school.name}
             </div>
             {school.motto && (
-              <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', marginTop: '3px' }}>"{school.motto}"</div>
+              <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', marginTop: '3px' }}>"{school.motto}"</div>
             )}
             <div style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.5)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {school.address}
+              {school.address} &nbsp;·&nbsp; Tel: {school.phoneNumber}
             </div>
           </div>
+          {/* Right spacer */}
+          <div style={{ width: '72px', flexShrink: 0 }} />
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '14px', fontStyle: 'italic', color: '#fed65b', marginBottom: '4px' }}>
-            {getTermName(term)} Report
-          </div>
-          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
-            {academicYear} Academic Session
-          </div>
-          <div style={{ marginTop: '8px', backgroundColor: '#fed65b', color: '#00113a', fontSize: '7.5px', fontWeight: 700, padding: '3px 8px', borderRadius: '3px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'inline-block' }}>
-            Student Terminal Report
-          </div>
+      </div>
+
+      {/* ── TERM BAND — below header divider ── */}
+      <div style={{ backgroundColor: '#fed65b', padding: '5px 16mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#00113a', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          Terminal Report Sheet
+        </div>
+        <div style={{ fontSize: '8.5px', fontWeight: 700, color: '#00113a' }}>
+          {academicYear} Academic Session &nbsp;·&nbsp; {getTermName(term)}
         </div>
       </div>
 
@@ -195,12 +195,13 @@ export const ModernResultSheet: React.FC<Props> = ({
       </div>
 
       {/* ── STATS ROW ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px', margin: '0 0 2px 0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: attendance ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', gap: '2px', margin: '0 0 2px 0' }}>
         {[
           { label: 'Position', value: `${formatPosition(position)} of ${totalStudents}`, accent: true },
           { label: 'Total Score', value: `${totalScore} / ${totalPossible}`, accent: false },
           { label: 'Percentage', value: `${percentage.toFixed(1)}%`, accent: true },
           { label: 'Class Highest', value: `${classHighest?.toFixed(1) ?? '—'}%`, accent: false },
+          ...(attendance ? [{ label: 'Attendance', value: `${attendance.daysPresent} / ${attendance.daysSchoolOpened}`, accent: false }] : []),
         ].map(({ label, value, accent }) => (
           <div key={label} style={{
             backgroundColor: accent ? '#002366' : '#dbe1ff',
@@ -307,18 +308,25 @@ export const ModernResultSheet: React.FC<Props> = ({
 
         {/* Comments */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          {[
-            { label: "Class Teacher's Comment", text: comment?.teacherComment },
-            { label: school.principalName ? `${school.principalName}'s Comment` : "Principal's Comment", text: comment?.principalComment },
-          ].map(({ label, text }) => (
-            <div key={label} style={{ backgroundColor: '#f3f4f5', padding: '8px', borderRadius: '4px' }}>
-              <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#002366', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
-              <div style={{ fontSize: '8.5px', fontStyle: 'italic', color: '#191c1d', minHeight: '28px', lineHeight: 1.5 }}>{text || '—'}</div>
-              <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '8px', paddingTop: '4px', fontSize: '7.5px', color: '#757682' }}>
-                Signature: ___________________
-              </div>
+          <div style={{ backgroundColor: '#f3f4f5', padding: '8px', borderRadius: '4px' }}>
+            <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#002366', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>Class Teacher's Comment</div>
+            <div style={{ fontSize: '8.5px', fontStyle: 'italic', color: '#191c1d', minHeight: '28px', lineHeight: 1.5 }}>{comment?.teacherComment || '—'}</div>
+            <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '8px', paddingTop: '4px', fontSize: '7.5px', color: '#757682' }}>
+              {teacherName && <div style={{ fontWeight: 700, color: '#002366', marginBottom: '2px' }}>{teacherName}</div>}
+              Class Teacher's Signature: ___________________
             </div>
-          ))}
+          </div>
+          <div style={{ backgroundColor: '#f3f4f5', padding: '8px', borderRadius: '4px' }}>
+            <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#002366', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>Principal's Comment</div>
+            <div style={{ fontSize: '8.5px', fontStyle: 'italic', color: '#191c1d', minHeight: '28px', lineHeight: 1.5 }}>{comment?.principalComment || '—'}</div>
+            <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '8px', paddingTop: '4px', fontSize: '7.5px', color: '#757682', display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                {principalName && <div style={{ fontWeight: 700, color: '#002366', marginBottom: '2px' }}>{principalName}</div>}
+                <span>Principal's Signature: ___________________</span>
+              </div>
+              <span>[School Stamp]</span>
+            </div>
+          </div>
         </div>
       </div>
 

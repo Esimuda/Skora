@@ -131,35 +131,43 @@ export const ClassicResultSheet: React.FC<Props> = ({
       <div style={{ position: 'relative', zIndex: 1 }}>
 
         {/* ── HEADER ── */}
-        <div style={{ borderBottom: '2.5px solid #00113a', paddingBottom: '10px', marginBottom: '10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ borderBottom: '2.5px solid #00113a', paddingBottom: '10px', marginBottom: '0px' }}>
+          {/* Top row: logo left, school name center, logo right (mirror for balance) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* Logo — large and prominent */}
             {school.logo ? (
-              <img src={school.logo} alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
+              <img src={school.logo} alt="Logo" style={{ width: '72px', height: '72px', objectFit: 'contain', flexShrink: 0 }} />
             ) : (
-              <div style={{ width: '56px', height: '56px', backgroundColor: '#00113a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ color: '#fed65b', fontWeight: 900, fontSize: '20px' }}>S</span>
+              <div style={{ width: '72px', height: '72px', backgroundColor: '#00113a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: '4px' }}>
+                <span style={{ color: '#fed65b', fontWeight: 900, fontSize: '28px' }}>{(school.name ?? 'S')[0].toUpperCase()}</span>
               </div>
             )}
-            <div>
-              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '16px', fontWeight: 900, color: '#00113a', textTransform: 'uppercase', letterSpacing: '-0.5px', lineHeight: 1 }}>
+            {/* School name + details — centered */}
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontFamily: "'Noto Serif', serif", fontSize: '22px', fontWeight: 900, color: '#00113a', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: 1.1 }}>
                 {school.name}
               </div>
               {school.motto && (
-                <div style={{ fontFamily: "'Noto Serif', serif", fontStyle: 'italic', fontSize: '9px', color: '#444650', marginTop: '3px' }}>
+                <div style={{ fontFamily: "'Noto Serif', serif", fontStyle: 'italic', fontSize: '8.5px', color: '#444650', marginTop: '3px' }}>
                   "{school.motto}"
                 </div>
               )}
-              <div style={{ fontSize: '8px', color: '#757682', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '7.5px', color: '#757682', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {school.address} &nbsp;·&nbsp; Tel: {school.phoneNumber}
               </div>
             </div>
+            {/* Right spacer matching logo width for visual balance */}
+            <div style={{ width: '72px', flexShrink: 0 }} />
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ backgroundColor: '#00113a', color: '#fed65b', fontSize: '8px', fontWeight: 700, padding: '3px 8px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '5px', display: 'inline-block' }}>
-              Terminal Report Sheet
-            </div>
-            <div style={{ fontSize: '9px', color: '#00113a', fontWeight: 700 }}>{academicYear} Academic Session</div>
-            <div style={{ fontSize: '8px', color: '#757682' }}>{getTermName(term)}</div>
+        </div>
+
+        {/* ── REPORT TYPE BAND — sits below the divider ── */}
+        <div style={{ backgroundColor: '#00113a', padding: '5px 12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ color: '#fed65b', fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }}>
+            Terminal Report Sheet
+          </div>
+          <div style={{ color: '#ffffff', fontSize: '8.5px', fontWeight: 700 }}>
+            {academicYear} Academic Session &nbsp;·&nbsp; {getTermName(term)}
           </div>
         </div>
 
@@ -191,12 +199,13 @@ export const ClassicResultSheet: React.FC<Props> = ({
         </div>
 
         {/* ── CLASS STATS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: attendance ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
           {[
             ['Position', `${formatPosition(position)} of ${totalStudents}`],
             ['Total Score', `${totalScore} / ${totalPossible}`],
             ['Percentage', `${percentage.toFixed(1)}%`],
             ['Class Highest', `${classHighest?.toFixed(1) ?? '—'}%`],
+            ...(attendance ? [['Attendance', `${attendance.daysPresent} / ${attendance.daysSchoolOpened}`]] : []),
           ].map(([label, value]) => (
             <div key={label} style={{ backgroundColor: '#00113a', padding: '5px 8px', textAlign: 'center' }}>
               <div style={{ fontSize: '7px', color: '#b3c5ff', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>{label}</div>
