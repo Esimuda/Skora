@@ -283,6 +283,9 @@ export interface StudentResult {
   classAverage?: number;
   term: Term;
   academicYear: string;
+  attendance?: { daysPresent: number; daysSchoolOpened: number } | null;
+  teacherName?: string | null;
+  principalName?: string | null;
 }
 
 export interface AnnualResult {
