@@ -23,7 +23,6 @@ export const HybridResultSheet: React.FC<Props> = ({
     totalScore, totalPossible, percentage, position,
     totalStudents, classHighest, classAverage, term, academicYear,
     attendance, teacherName, principalName,
-    attendance, teacherName, principalName,
   } = result;
 
   const studentFullName = formatFullName(student.firstName, student.lastName, student.middleName);
