@@ -62,6 +62,17 @@ export class PinBatchesController {
     return this.service.getRawPinsForBatch(batchId, schoolId);
   }
 
+  // Called by the frontend after the cards PDF has actually been generated
+  // in the browser — only then is it safe to wipe the plaintext PINs.
+  @Post('schools/:schoolId/batches/:batchId/pins/confirm-download')
+  @Roles('school_admin', 'admin', 'super_admin')
+  confirmCardsDownloaded(
+    @Param('schoolId') schoolId: string,
+    @Param('batchId') batchId: string,
+  ) {
+    return this.service.confirmCardsDownloaded(batchId, schoolId);
+  }
+
   // ── Super Admin routes ────────────────────────────────────────────────────
 
   @Put('admin/batches/:batchId/activate')

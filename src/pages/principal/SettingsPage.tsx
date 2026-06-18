@@ -119,6 +119,8 @@ export const SettingsPage = () => {
   const [requestingBatch, setRequestingBatch] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
   const [batchSuccess, setBatchSuccess] = useState(false);
+  const [downloadingBatchId, setDownloadingBatchId] = useState<string | null>(null);
+  const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
 
 
   const buildPreviewSchool = (): School => ({
@@ -248,6 +250,34 @@ export const SettingsPage = () => {
       setBatchError(e.message ?? 'Failed to submit batch request');
     } finally {
       setRequestingBatch(false);
+    }
+  };
+
+  const handleDownloadCards = async (batch: any) => {
+    if (downloadingBatchId) return; // guard against double-clicks/concurrent requests
+    setDownloadingBatchId(batch.id);
+    setDownloadErrors((prev) => {
+      const next = { ...prev };
+      delete next[batch.id];
+      return next;
+    });
+    try {
+      const pins = await api.get<string[]>(
+        `/schools/${user?.schoolId}/batches/${batch.id}/pins`
+      );
+      generateCardsPdf({
+        pins,
+        schoolName: school?.name ?? 'School',
+        term: batch.term,
+        academicYear: batch.academicYear,
+      });
+      // Only tell the server it's safe to wipe the plaintext PINs once the
+      // PDF has actually been generated on this device.
+      await api.post(`/schools/${user?.schoolId}/batches/${batch.id}/pins/confirm-download`);
+    } catch (e: any) {
+      setDownloadErrors((prev) => ({ ...prev, [batch.id]: e.message ?? 'Failed to download cards' }));
+    } finally {
+      setDownloadingBatchId(null);
     }
   };
 
@@ -746,27 +776,28 @@ export const SettingsPage = () => {
                           day: 'numeric', month: 'short', year: 'numeric',
                         })}
                       </p>
+                      {downloadErrors[batch.id] && (
+                        <p className="text-xs text-error mt-1.5 max-w-sm">
+                          {downloadErrors[batch.id]}
+                        </p>
+                      )}
                     </div>
                     {batch.status === 'active' && (
                       <button
-                        onClick={async () => {
-                          try {
-                            const pins = await api.get<string[]>(
-                              `/schools/${user?.schoolId}/batches/${batch.id}/pins`
-                            );
-                            generateCardsPdf({
-                              pins,
-                              schoolName: school?.name ?? 'School',
-                              term: batch.term,
-                              academicYear: batch.academicYear,
-                            });
-                          } catch (e: any) {
-                            setBatchError(e.message ?? 'Failed to download cards');
-                          }
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors"
+                        onClick={() => handleDownloadCards(batch)}
+                        disabled={downloadingBatchId === batch.id}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors disabled:opacity-50"
                       >
-                        <Icon name="download" className="text-sm" /> Download Cards
+                        {downloadingBatchId === batch.id ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                            Downloading...
+                          </>
+                        ) : (
+                          <>
+                            <Icon name="download" className="text-sm" /> Download Cards
+                          </>
+                        )}
                       </button>
                     )}
                   </div>

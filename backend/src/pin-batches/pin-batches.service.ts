@@ -255,7 +255,15 @@ export class PinBatchesService {
   }
 
   // ── Principal: get raw pins for PDF generation ────────────────────────────
-
+  //
+  // IMPORTANT: this only READS the plaintext PINs — it does not clear them.
+  // Clearing happens in confirmCardsDownloaded(), which the frontend calls
+  // only after the PDF has actually been generated in the browser. If we
+  // cleared here instead, any client-side hiccup (slow network, popup
+  // blocker, browser tab closed mid-render, etc.) after a successful fetch
+  // would permanently destroy the plaintext PINs — they're bcrypt-hashed
+  // and cannot be recovered — even though the principal never actually
+  // got the PDF. Splitting fetch and confirm avoids that failure mode.
   async getRawPinsForBatch(batchId: string, schoolId: string): Promise<string[]> {
     const batch = await this.batchRepo.findOne({ where: { id: batchId, schoolId } });
     if (!batch) throw new NotFoundException('Batch not found');
@@ -271,14 +279,24 @@ export class PinBatchesService {
 
     if (rawPins.length === 0) {
       throw new BadRequestException(
-        'PIN display values have already been cleared. Cards were already downloaded for this batch.',
+        'These result cards have already been downloaded. For security, the PIN values are cleared from our system right after a successful download and cannot be retrieved again. If this batch was never actually downloaded, please contact Skora support.',
       );
     }
 
-    // Clear pinDisplay after retrieval — plain PINs no longer stored
-    await this.generator.clearPinDisplay(batchId);
-
     return rawPins;
+  }
+
+  // ── Principal: confirm the PDF was generated, now safe to clear PINs ──────
+  //
+  // Called by the frontend right after generateCardsPdf() succeeds. Clearing
+  // here — instead of inside getRawPinsForBatch — means the plaintext PINs
+  // only ever get wiped once we know the principal actually has the PDF.
+  async confirmCardsDownloaded(batchId: string, schoolId: string): Promise<{ success: true }> {
+    const batch = await this.batchRepo.findOne({ where: { id: batchId, schoolId } });
+    if (!batch) throw new NotFoundException('Batch not found');
+
+    await this.generator.clearPinDisplay(batchId);
+    return { success: true };
   }
 
   // ── Portal: validate a PIN submitted by a parent ──────────────────────────
