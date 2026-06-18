@@ -312,19 +312,16 @@ export const ModernResultSheet: React.FC<Props> = ({
             <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#002366', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>Class Teacher's Comment</div>
             <div style={{ fontSize: '8.5px', fontStyle: 'italic', color: '#191c1d', minHeight: '28px', lineHeight: 1.5 }}>{comment?.teacherComment || '—'}</div>
             <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '8px', paddingTop: '4px', fontSize: '7.5px', color: '#757682' }}>
-              {teacherName && <div style={{ fontWeight: 700, color: '#002366', marginBottom: '2px' }}>{teacherName}</div>}
-              Class Teacher's Signature: ___________________
+              <div style={{ fontSize: '7px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Class Teacher</div>
+              <div style={{ fontWeight: 700, color: '#002366' }}>{teacherName || '—'}</div>
             </div>
           </div>
           <div style={{ backgroundColor: '#f3f4f5', padding: '8px', borderRadius: '4px' }}>
             <div style={{ fontSize: '7px', textTransform: 'uppercase', color: '#002366', fontWeight: 700, letterSpacing: '0.5px', marginBottom: '4px' }}>Principal's Comment</div>
             <div style={{ fontSize: '8.5px', fontStyle: 'italic', color: '#191c1d', minHeight: '28px', lineHeight: 1.5 }}>{comment?.principalComment || '—'}</div>
-            <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '8px', paddingTop: '4px', fontSize: '7.5px', color: '#757682', display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                {principalName && <div style={{ fontWeight: 700, color: '#002366', marginBottom: '2px' }}>{principalName}</div>}
-                <span>Principal's Signature: ___________________</span>
-              </div>
-              <span>[School Stamp]</span>
+            <div style={{ borderTop: '0.5px solid #c5c6d2', marginTop: '8px', paddingTop: '4px', fontSize: '7.5px', color: '#757682' }}>
+              <div style={{ fontSize: '7px', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Principal</div>
+              <div style={{ fontWeight: 700, color: '#002366' }}>{principalName || '—'}</div>
             </div>
           </div>
         </div>

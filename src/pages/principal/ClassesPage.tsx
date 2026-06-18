@@ -87,6 +87,7 @@ export const ClassesPage = () => {
   const selectedTeacher = teachers.find((t) => t.id === form.teacherId);
 
   const handleTeacherSelect = (teacher: Teacher | null) => {
+    console.log("SELECTED TEACHER:", teacher); // ADD THIS LOG
     if (!teacher) {
       setForm({ ...form, teacherId: "", teacherName: "" });
     } else {
