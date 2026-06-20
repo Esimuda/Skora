@@ -39,11 +39,11 @@ export class DownloadUnlock {
   scope!: 'class' | 'school';
 
   // Populated only when scope = 'class'
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   classId!: string | null;
 
   // Denormalised class name for admin display
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   className!: string | null;
 
   // Number of students covered by this unlock (used for pricing display)
