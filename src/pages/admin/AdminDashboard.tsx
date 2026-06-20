@@ -12,6 +12,8 @@ interface PlatformStats {
   totalSchools: number;
   activeSchools: number;
   pendingBatches: number;
+  pendingUnlocks: number;
+  totalPendingRequests: number;
   totalPinsIssued: number;
   totalPinsUsed: number;
   estimatedRevenue: number;
@@ -49,21 +51,21 @@ export const AdminDashboard = () => {
       action: () => navigate('/admin/schools'),
     },
     {
-      label: 'Pending Batches',
-      value: stats.pendingBatches,
+      label: 'Pending Requests',
+      value: stats.totalPendingRequests,
       icon: 'pending_actions',
-      iconBg: stats.pendingBatches > 0
+      iconBg: stats.totalPendingRequests > 0
         ? 'bg-error-container text-on-error-container'
         : 'bg-surface-container text-on-surface-variant',
-      alert: stats.pendingBatches > 0,
-      action: () => navigate('/admin/batches'),
+      alert: stats.totalPendingRequests > 0,
+      action: () => navigate('/admin/requests'),
     },
     {
       label: 'PINs Issued',
       value: stats.totalPinsIssued.toLocaleString(),
       icon: 'style',
       iconBg: 'bg-secondary/5 text-secondary',
-      action: () => navigate('/admin/batches'),
+      action: () => navigate('/admin/requests'),
     },
     {
       label: 'Est. Revenue',
@@ -75,15 +77,15 @@ export const AdminDashboard = () => {
   ] : [];
 
   const getActivityIcon = (type: string) => {
-    if (type === 'batch_requested') return 'pending_actions';
-    if (type === 'batch_activated') return 'verified';
+    if (type === 'batch_requested' || type === 'unlock_requested') return 'pending_actions';
+    if (type === 'batch_activated' || type === 'unlock_activated') return 'verified';
     if (type === 'school_registered') return 'apartment';
     return 'info';
   };
 
   const getActivityColor = (type: string) => {
-    if (type === 'batch_requested') return 'bg-tertiary-fixed-dim/20 text-on-tertiary-container';
-    if (type === 'batch_activated') return 'bg-secondary-container/40 text-on-secondary-container';
+    if (type === 'batch_requested' || type === 'unlock_requested') return 'bg-tertiary-fixed-dim/20 text-on-tertiary-container';
+    if (type === 'batch_activated' || type === 'unlock_activated') return 'bg-secondary-container/40 text-on-secondary-container';
     return 'bg-primary/5 text-primary';
   };
 
@@ -109,19 +111,22 @@ export const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Pending batches alert */}
-        {stats && stats.pendingBatches > 0 && (
+        {/* Pending requests alert */}
+        {stats && stats.totalPendingRequests > 0 && (
           <button
-            onClick={() => navigate('/admin/batches')}
+            onClick={() => navigate('/admin/requests')}
             className="w-full ledger-card p-4 flex items-center gap-3 border-l-4 border-error text-left hover:bg-error-container/10 transition-colors"
           >
             <Icon name="warning" className="text-error flex-shrink-0" />
             <div className="flex-1">
               <p className="font-bold text-on-surface text-sm">
-                {stats.pendingBatches} batch{stats.pendingBatches !== 1 ? 'es' : ''} awaiting activation
+                {stats.totalPendingRequests} request{stats.totalPendingRequests !== 1 ? 's' : ''} awaiting activation
               </p>
               <p className="text-xs text-on-surface-variant mt-0.5">
-                Schools are waiting for their scratch cards — click to review and activate
+                {stats.pendingBatches > 0 && `${stats.pendingBatches} scratch card batch${stats.pendingBatches !== 1 ? 'es' : ''}`}
+                {stats.pendingBatches > 0 && stats.pendingUnlocks > 0 && ' · '}
+                {stats.pendingUnlocks > 0 && `${stats.pendingUnlocks} download unlock${stats.pendingUnlocks !== 1 ? 's' : ''}`}
+                {' '}— click to review and activate
               </p>
             </div>
             <Icon name="chevron_right" className="text-on-surface-variant flex-shrink-0" />

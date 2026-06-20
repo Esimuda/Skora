@@ -199,7 +199,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const adminLinks = [
     { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/admin/schools',   label: 'Schools',   icon: 'apartment' },
-    { to: '/admin/batches',   label: 'Batches',   icon: 'style' },
+    { to: '/admin/requests',  label: 'Requests',  icon: 'style' },
     { to: '/admin/revenue',   label: 'Revenue',   icon: 'payments' },
     { to: '/admin/payouts',   label: 'Payouts',   icon: 'account_balance' },
   ];
@@ -218,10 +218,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { to: '/teacher/submit',     label: 'Submit',   icon: 'send' },
   ];
   const adminMobileLinks = [
-    { to: '/admin/dashboard', label: 'Home',    icon: 'dashboard' },
-    { to: '/admin/schools',   label: 'Schools', icon: 'apartment' },
-    { to: '/admin/batches',   label: 'Batches', icon: 'style' },
-    { to: '/admin/revenue',   label: 'Revenue', icon: 'payments' },
+    { to: '/admin/dashboard', label: 'Home',     icon: 'dashboard' },
+    { to: '/admin/schools',   label: 'Schools',  icon: 'apartment' },
+    { to: '/admin/requests',  label: 'Requests', icon: 'style' },
+    { to: '/admin/revenue',   label: 'Revenue',  icon: 'payments' },
   ];
   const principalMobileLinks = [
     { to: '/principal/dashboard', label: 'Home',      icon: 'dashboard' },

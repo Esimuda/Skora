@@ -22,6 +22,7 @@ import { PinBatchesModule } from './pin-batches/pin-batches.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { AdminModule } from './admin/admin.module';
 import { PortalModule } from './portal/portal.module';
+import { DownloadUnlocksModule } from './download-unlocks/download-unlocks.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { PortalModule } from './portal/portal.module';
     PayoutsModule,
     AdminModule,
     PortalModule,
+    DownloadUnlocksModule,
   ],
 })
 export class AppModule {}

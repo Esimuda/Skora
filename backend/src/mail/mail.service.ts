@@ -334,4 +334,102 @@ export class MailService {
       context: 'batch-activated',
     });
   }
+
+  async sendDownloadUnlockRequestNotification(opts: {
+    schoolName: string;
+    principalName: string;
+    principalEmail: string;
+    scope: 'class' | 'school';
+    className: string | null;
+    studentCount: number;
+    totalAmount: number;
+    term: string;
+    academicYear: string;
+  }) {
+    const scopeLabel = opts.scope === 'school'
+      ? 'Entire School'
+      : `Class: ${opts.className}`;
+
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:8px">
+        <div style="background:#001944;padding:24px;border-radius:6px;text-align:center;margin-bottom:24px">
+          <h1 style="color:#fff;margin:0;font-size:24px">Skora RMS</h1>
+          <p style="color:#b3c5ff;margin:4px 0 0">Admin Alert</p>
+        </div>
+        <h2 style="color:#001944">New ZIP Download Request</h2>
+        <p><strong>${opts.schoolName}</strong> has requested a physical result download unlock.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0">
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">Principal</td>
+            <td style="padding:8px 12px">${opts.principalName} (${opts.principalEmail})</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;font-weight:700">Scope</td>
+            <td style="padding:8px 12px">${scopeLabel}</td>
+          </tr>
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">Students</td>
+            <td style="padding:8px 12px">${opts.studentCount}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;font-weight:700">Term</td>
+            <td style="padding:8px 12px">${opts.term} Term · ${opts.academicYear}</td>
+          </tr>
+          <tr style="background:#f3f4f5">
+            <td style="padding:8px 12px;font-weight:700">Amount Due</td>
+            <td style="padding:8px 12px;font-weight:900;color:#001944">₦${opts.totalAmount.toLocaleString()}</td>
+          </tr>
+        </table>
+        <p>Log in to the Skora admin panel and go to <strong>Requests</strong> to activate once payment is confirmed.</p>
+        <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0">
+        <p style="color:#757682;font-size:12px">Skora RMS — Nigerian School Result Management System</p>
+      </div>
+    `;
+
+    const adminEmail = this.config.get<string>('ADMIN_EMAIL', '');
+    if (adminEmail) {
+      await this.send({
+        to: adminEmail,
+        subject: `ZIP download request — ${opts.schoolName} (₦${opts.totalAmount.toLocaleString()})`,
+        html,
+        context: 'download-unlock-request',
+      });
+    }
+  }
+
+  async sendDownloadUnlockActivatedNotification(opts: {
+    to: string;
+    principalName: string;
+    schoolName: string;
+    scope: 'class' | 'school';
+    className: string | null;
+    term: string;
+    academicYear: string;
+  }) {
+    const scopeLabel = opts.scope === 'school'
+      ? 'your entire school'
+      : `${opts.className}`;
+
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:8px">
+        <div style="background:#001944;padding:24px;border-radius:6px;text-align:center;margin-bottom:24px">
+          <h1 style="color:#fff;margin:0;font-size:24px">Skora RMS</h1>
+          <p style="color:#b3c5ff;margin:4px 0 0">Academic Ledger</p>
+        </div>
+        <h2 style="color:#001944">Your Download Access Is Ready</h2>
+        <p>Hello <strong>${opts.principalName}</strong>,</p>
+        <p>Your payment has been confirmed. You can now download physical result sheets for <strong>${scopeLabel}</strong> — <strong>${opts.term} Term, ${opts.academicYear}</strong>.</p>
+        <p>Log in to Skora RMS and go to <strong>Downloads → Physical Copies</strong> to download your ZIP file. You can re-download as many times as you need for this term.</p>
+        <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0">
+        <p style="color:#757682;font-size:12px">Skora RMS — Nigerian School Result Management System</p>
+      </div>
+    `;
+
+    await this.send({
+      to: opts.to,
+      subject: `Download access activated — ${opts.schoolName} (${opts.term} Term)`,
+      html,
+      context: 'download-unlock-activated',
+    });
+  }
 }

@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminDashboard }        from '@/pages/admin/AdminDashboard';
 import { AdminSchoolsPage }      from '@/pages/admin/AdminSchoolsPage';
 import { AdminSchoolDetailPage } from '@/pages/admin/AdminSchoolDetailPage';
-import { AdminBatchesPage }      from '@/pages/admin/AdminBatchesPage';
+import { AdminRequestsPage }     from '@/pages/admin/AdminRequestsPage';
 import { AdminRevenuePage }      from '@/pages/admin/AdminRevenuePage';
 import { AdminPayoutsPage }      from '@/pages/admin/AdminPayoutsPage';
 
@@ -13,7 +13,8 @@ export default function AdminRoutes() {
       <Route path="/admin/dashboard"           element={<AdminDashboard />} />
       <Route path="/admin/schools"             element={<AdminSchoolsPage />} />
       <Route path="/admin/schools/:schoolId"   element={<AdminSchoolDetailPage />} />
-      <Route path="/admin/batches"             element={<AdminBatchesPage />} />
+      <Route path="/admin/requests"            element={<AdminRequestsPage />} />
+      <Route path="/admin/batches"             element={<Navigate to="/admin/requests" replace />} />
       <Route path="/admin/revenue"             element={<AdminRevenuePage />} />
       <Route path="/admin/payouts"             element={<AdminPayoutsPage />} />
       <Route path="*"                          element={<Navigate to="/admin/dashboard" replace />} />

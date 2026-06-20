@@ -416,3 +416,24 @@ export const GRADING_SCALE = DEFAULT_NIGERIAN_GRADING.map((g) => ({
   max: g.maxPercentage,
   remark: g.remark,
 }));
+
+export interface DownloadUnlock {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  principalName: string;
+  principalEmail: string;
+  term: string;
+  academicYear: string;
+  scope: 'class' | 'school';
+  classId: string | null;
+  className: string | null;
+  studentCount: number;
+  unitPrice: number;
+  totalAmount: number;
+  status: 'pending_payment' | 'active';
+  paymentReference: string | null;
+  notes: string | null;
+  activatedAt: string | null;
+  requestedAt: string;
+}
