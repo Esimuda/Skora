@@ -27,6 +27,7 @@ import {
   Score,
   Student,
   DownloadUnlock,
+  PinUsageDetail,
 } from "@/types";
 import { ClassicResultSheet } from "@/templates/ClassicResultSheet";
 import { ModernResultSheet } from "@/templates/ModernResultSheet";
@@ -232,7 +233,7 @@ export const DownloadsPage = () => {
 
   const [selectedTerm, setSelectedTerm] = useState<Term>(initialTerm);
   const [selectedYear, setSelectedYear] = useState<string>(initialYear);
-  const [activeTab, setActiveTab] = useState<"previews" | "physical">("previews");
+  const [activeTab, setActiveTab] = useState<"previews" | "physical" | "online">("previews");
 
   useEffect(() => {
     setSearchParams({ term: selectedTerm, academicYear: selectedYear }, { replace: true });
@@ -260,7 +261,15 @@ export const DownloadsPage = () => {
   const [zipping, setZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState(0);
 
+  const [unlocksError, setUnlocksError] = useState<string | null>(null);
+
   // ── Fetch core data on term change ─────────────────────────────────────────
+  // Deliberately does NOT include the download-unlocks fetch — that lives in
+  // its own effect below. If they were bundled in one Promise.all, a failure
+  // fetching unlocks would wipe out school/classes/approvedStatuses too,
+  // since Promise.all rejects (and skips ALL .then state updates) the moment
+  // any single request fails. That would break class selection and previews
+  // even though those endpoints succeeded fine.
   useEffect(() => {
     if (!schoolId) { setLoading(false); return; }
     setLoading(true);
@@ -271,13 +280,11 @@ export const DownloadsPage = () => {
       api.get<ClassResult[]>(
         `/schools/${schoolId}/results?status=approved&term=${selectedTerm}&academicYear=${yearParam}`,
       ),
-      api.get<DownloadUnlock[]>(`/schools/${schoolId}/download-unlocks`),
     ])
-      .then(([schoolData, classesData, statusesData, unlocksData]) => {
+      .then(([schoolData, classesData, statusesData]) => {
         setSchool(schoolData);
         setClasses(classesData);
         setApprovedStatuses(statusesData);
-        setUnlocks(unlocksData);
         if (selectedClassId && !statusesData.some((s) => s.classId === selectedClassId)) {
           setSelectedClassId("");
           setClassResults([]);
@@ -286,6 +293,40 @@ export const DownloadsPage = () => {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [schoolId, selectedTerm, selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch download unlocks separately ───────────────────────────────────────
+  // Isolated on purpose — see note above. A failure here only disables the
+  // Physical Reports tab's unlock state (shown as a small inline warning),
+  // it never blocks Previews or class selection.
+  useEffect(() => {
+    if (!schoolId) return;
+    setUnlocksError(null);
+    api.get<DownloadUnlock[]>(`/schools/${schoolId}/download-unlocks`)
+      .then(setUnlocks)
+      .catch((e) => setUnlocksError(e.message ?? "Failed to load download unlock status"));
+  }, [schoolId, selectedTerm, selectedYear]);
+
+  // ── Online Reports: PIN usage tracker state ─────────────────────────────────
+  const [usageDetail, setUsageDetail] = useState<PinUsageDetail | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const [usageClassFilter, setUsageClassFilter] = useState("");
+  const [usageStatusFilter, setUsageStatusFilter] = useState<"" | "used" | "unused" | "exhausted">("");
+
+  const fetchUsage = () => {
+    if (!schoolId) return;
+    setUsageLoading(true);
+    setUsageError(null);
+    const yearParam = encodeURIComponent(selectedYear);
+    api.get<PinUsageDetail>(`/schools/${schoolId}/batches/usage?term=${selectedTerm}&academicYear=${yearParam}`)
+      .then(setUsageDetail)
+      .catch((e) => setUsageError(e.message ?? "Failed to load card usage"))
+      .finally(() => setUsageLoading(false));
+  };
+
+  useEffect(() => {
+    if (activeTab === "online") fetchUsage();
+  }, [activeTab, schoolId, selectedTerm, selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch results for selected class (Previews tab) ────────────────────────
   useEffect(() => {
@@ -510,7 +551,17 @@ export const DownloadsPage = () => {
                 : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
-            <Icon name="sim_card_download" className="text-base" /> Physical Copies
+            <Icon name="sim_card_download" className="text-base" /> Physical Reports
+          </button>
+          <button
+            onClick={() => setActiveTab("online")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "online"
+                ? "bg-surface text-primary shadow-sm"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <Icon name="qr_code_scanner" className="text-base" /> Online Reports
           </button>
         </div>
 
@@ -743,6 +794,27 @@ export const DownloadsPage = () => {
               </div>
             </div>
 
+            {unlocksError && (
+              <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm flex items-start gap-2">
+                <Icon name="warning" className="flex-shrink-0 mt-0.5 text-base" />
+                <div className="flex-1">
+                  <p className="font-bold">Couldn't load your download access status</p>
+                  <p className="mt-0.5">{unlocksError}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setUnlocksError(null);
+                    api.get<DownloadUnlock[]>(`/schools/${schoolId}/download-unlocks`)
+                      .then(setUnlocks)
+                      .catch((e) => setUnlocksError(e.message ?? "Failed to load download unlock status"));
+                  }}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-error text-on-error text-xs font-bold hover:bg-error/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             {unlockError && (
               <div className="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-sm flex items-start gap-2">
                 <Icon name="warning" className="flex-shrink-0 mt-0.5 text-base" />
@@ -958,6 +1030,170 @@ export const DownloadsPage = () => {
                 </p>
               </div>
             </div>
+          </>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB: ONLINE REPORTS (usage tracker)
+        ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === "online" && (
+          <>
+            <div className="ledger-card p-5 flex items-start gap-4 border-l-4 border-tertiary-fixed-dim">
+              <Icon name="qr_code_scanner" className="text-on-tertiary-container flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-bold text-on-surface mb-1">Scratch card usage</p>
+                <p className="text-on-surface-variant">
+                  Track which scratch cards parents have actually used to view results online, for{" "}
+                  <strong>{selectedTerm} term {selectedYear}</strong>. Cards are matched to a student the first time they're scratched —
+                  unused cards aren't tied to anyone yet.
+                </p>
+              </div>
+            </div>
+
+            {usageLoading ? (
+              <div className="ledger-card flex items-center justify-center py-16">
+                <span className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              </div>
+            ) : usageError ? (
+              <div className="ledger-card p-4 border-l-4 border-error flex items-center gap-3">
+                <Icon name="error" className="text-error text-base flex-shrink-0" />
+                <p className="text-sm text-on-surface flex-1">{usageError}</p>
+                <button onClick={fetchUsage} className="px-3 py-1.5 rounded-lg bg-error text-on-error text-sm font-semibold hover:bg-error/90 transition-colors flex-shrink-0">
+                  Retry
+                </button>
+              </div>
+            ) : !usageDetail?.hasActiveBatch ? (
+              <div className="ledger-card flex flex-col items-center justify-center py-20 text-on-surface-variant">
+                <Icon name="style" className="text-5xl text-outline/30 mb-4" />
+                <p className="font-headline font-bold text-lg">No active scratch card batch</p>
+                <p className="text-sm mt-1">There's no active batch for {selectedTerm} term {selectedYear} yet.</p>
+                <Link to="/principal/settings" className="mt-4 btn-primary text-sm flex items-center gap-2">
+                  <Icon name="style" className="text-base" /> Request a Batch
+                </Link>
+              </div>
+            ) : (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="ledger-card p-4">
+                    <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">Total Cards</p>
+                    <p className="text-2xl font-extrabold text-on-surface mt-1">{usageDetail.summary.totalPins}</p>
+                  </div>
+                  <div className="ledger-card p-4">
+                    <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">Used</p>
+                    <p className="text-2xl font-extrabold text-secondary mt-1">{usageDetail.summary.usedPins}</p>
+                  </div>
+                  <div className="ledger-card p-4">
+                    <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">Unused</p>
+                    <p className="text-2xl font-extrabold text-on-surface-variant mt-1">{usageDetail.summary.unusedPins}</p>
+                  </div>
+                  <div className="ledger-card p-4">
+                    <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">Fully Exhausted</p>
+                    <p className="text-2xl font-extrabold text-tertiary mt-1">{usageDetail.summary.exhaustedPins}</p>
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className="flex gap-3 flex-wrap">
+                  <select
+                    value={usageStatusFilter}
+                    onChange={(e) => setUsageStatusFilter(e.target.value as typeof usageStatusFilter)}
+                    className="input-inset w-auto"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="used">Used</option>
+                    <option value="unused">Unused</option>
+                    <option value="exhausted">Fully Exhausted</option>
+                  </select>
+                  <select
+                    value={usageClassFilter}
+                    onChange={(e) => setUsageClassFilter(e.target.value)}
+                    className="input-inset w-auto"
+                  >
+                    <option value="">All Classes</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                    <option value="__unmatched__">Not Yet Matched</option>
+                  </select>
+                </div>
+
+                {/* Usage list */}
+                {(() => {
+                  const filtered = usageDetail.pins.filter((p) => {
+                    if (usageStatusFilter && p.status !== usageStatusFilter) return false;
+                    if (usageClassFilter === "__unmatched__" && p.classId !== null) return false;
+                    if (usageClassFilter && usageClassFilter !== "__unmatched__" && p.classId !== usageClassFilter) return false;
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="ledger-card flex flex-col items-center justify-center py-16 text-on-surface-variant">
+                        <Icon name="filter_alt_off" className="text-4xl text-outline/30 mb-3" />
+                        <p>No cards match this filter</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="ledger-card overflow-hidden">
+                      <div className="px-5 py-3 border-b border-outline-variant/15 bg-surface-container-low flex items-center justify-between">
+                        <span className="text-sm font-bold text-on-surface-variant">
+                          {filtered.length} card{filtered.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-outline-variant/10">
+                        {filtered.map((p) => (
+                          <div key={p.pinId} className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-container-low/50 transition-colors">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-surface-container-highest">
+                              <Icon
+                                name={p.status === "unused" ? "lock" : p.status === "exhausted" ? "lock_open" : "check_circle"}
+                                className={`text-base ${
+                                  p.status === "unused" ? "text-on-surface-variant/50"
+                                  : p.status === "exhausted" ? "text-tertiary"
+                                  : "text-secondary"
+                                }`}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {p.studentName ? (
+                                <>
+                                  <p className="font-bold text-on-surface text-sm">{p.studentName}</p>
+                                  <p className="text-xs text-on-surface-variant">
+                                    {p.admissionNumber && `${p.admissionNumber} · `}
+                                    {p.className ?? "Unknown class"}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm text-on-surface-variant italic">Not yet scratched</p>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xs font-bold text-on-surface">
+                                {p.usesTotal - p.usesRemaining}/{p.usesTotal} views used
+                              </p>
+                              {p.lastUsedAt && (
+                                <p className="text-[11px] text-on-surface-variant/60 mt-0.5">
+                                  Last viewed {formatDate(p.lastUsedAt)}
+                                </p>
+                              )}
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                              p.status === "unused" ? "bg-surface-container-highest text-on-surface-variant"
+                              : p.status === "exhausted" ? "bg-tertiary-fixed text-on-tertiary-fixed-variant"
+                              : "badge-validated"
+                            }`}>
+                              {p.status === "unused" ? "Unused" : p.status === "exhausted" ? "Exhausted" : "Used"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
           </>
         )}
 

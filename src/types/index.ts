@@ -437,3 +437,24 @@ export interface DownloadUnlock {
   activatedAt: string | null;
   requestedAt: string;
 }
+
+export interface PinUsageEntry {
+  pinId: string;
+  batchId: string;
+  studentId: string | null;
+  studentName: string | null;
+  admissionNumber: string | null;
+  classId: string | null;
+  className: string | null;
+  usesTotal: number;
+  usesRemaining: number;
+  status: 'unused' | 'used' | 'exhausted';
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface PinUsageDetail {
+  hasActiveBatch: boolean;
+  summary: { totalPins: number; usedPins: number; unusedPins: number; exhaustedPins: number };
+  pins: PinUsageEntry[];
+}

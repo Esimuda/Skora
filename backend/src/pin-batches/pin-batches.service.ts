@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { PinBatch } from './pin-batch.entity';
 import { ResultPin } from './result-pin.entity';
 import { PinUse } from './pin-use.entity';
@@ -13,6 +13,8 @@ import { RequestBatchDto } from './dto/request-batch.dto';
 import { ActivateBatchDto } from './dto/activate-batch.dto';
 import { MailService } from '../mail/mail.service';
 import { SchoolsService } from '../schools/schools.service';
+import { Student } from '../students/student.entity';
+import { Class } from '../classes/class.entity';
 
 @Injectable()
 export class PinBatchesService {
@@ -20,6 +22,8 @@ export class PinBatchesService {
     @InjectRepository(PinBatch) private batchRepo: Repository<PinBatch>,
     @InjectRepository(ResultPin) private pinRepo: Repository<ResultPin>,
     @InjectRepository(PinUse) private useRepo: Repository<PinUse>,
+    @InjectRepository(Student) private studentRepo: Repository<Student>,
+    @InjectRepository(Class) private classRepo: Repository<Class>,
     private generator: PinGenerator,
     private mail: MailService,
     private schools: SchoolsService,
@@ -178,6 +182,119 @@ export class PinBatchesService {
     const unusedPins = pins.filter((p) => p.usesRemaining === p.usesTotal).length;
 
     return { hasActiveBatch: true, totalPins, usedPins, unusedPins, exhaustedPins };
+  }
+
+  // ── Principal: per-PIN usage detail for the "Online Reports" tracker tab ──
+  //
+  // Shows which PINs parents have actually scratched and used, matched to
+  // the student they were locked to on first use. PINs that haven't been
+  // used yet have no student association — a card isn't tied to anyone
+  // until the first time it's redeemed on the parent portal. Never returns
+  // the actual PIN value (the entity excludes it from default selects).
+
+  async getPinUsageDetail(
+    schoolId: string,
+    term: string,
+    academicYear: string,
+  ): Promise<{
+    hasActiveBatch: boolean;
+    summary: { totalPins: number; usedPins: number; unusedPins: number; exhaustedPins: number };
+    pins: {
+      pinId: string;
+      batchId: string;
+      studentId: string | null;
+      studentName: string | null;
+      admissionNumber: string | null;
+      classId: string | null;
+      className: string | null;
+      usesTotal: number;
+      usesRemaining: number;
+      status: 'unused' | 'used' | 'exhausted';
+      lastUsedAt: string | null;
+      createdAt: Date;
+    }[];
+  }> {
+    const batches = await this.batchRepo.find({
+      where: { schoolId, term, academicYear, status: 'active' },
+    });
+
+    const emptySummary = { totalPins: 0, usedPins: 0, unusedPins: 0, exhaustedPins: 0 };
+    if (batches.length === 0) {
+      return { hasActiveBatch: false, summary: emptySummary, pins: [] };
+    }
+
+    const batchIds = batches.map((b) => b.id);
+    const pins = await this.pinRepo
+      .createQueryBuilder('p')
+      .where('p.batchId IN (:...batchIds)', { batchIds })
+      .getMany();
+
+    // Look up students any used pins are locked to, so we can show name + class
+    const lockedStudentIds = [...new Set(
+      pins.map((p) => p.lockedToStudentId).filter((id): id is string => !!id),
+    )];
+    const students = lockedStudentIds.length
+      ? await this.studentRepo.find({ where: { id: In(lockedStudentIds) } })
+      : [];
+    const studentMap = new Map(students.map((s) => [s.id, s]));
+
+    const classIds = [...new Set(students.map((s) => s.classId).filter(Boolean))];
+    const classes = classIds.length
+      ? await this.classRepo.find({ where: { id: In(classIds) } })
+      : [];
+    const classMap = new Map(classes.map((c) => [c.id, c]));
+
+    // Most recent usage timestamp per pin, from the audit log
+    const pinIds = pins.map((p) => p.id);
+    const uses = pinIds.length
+      ? await this.useRepo
+          .createQueryBuilder('u')
+          .where('u.pinId IN (:...pinIds)', { pinIds })
+          .getMany()
+      : [];
+    const lastUsedMap = new Map<string, Date>();
+    for (const use of uses) {
+      const existing = lastUsedMap.get(use.pinId);
+      if (!existing || use.usedAt > existing) lastUsedMap.set(use.pinId, use.usedAt);
+    }
+
+    const detail = pins.map((p) => {
+      const status: 'unused' | 'used' | 'exhausted' =
+        p.usesRemaining === 0 ? 'exhausted' : p.usesRemaining < p.usesTotal ? 'used' : 'unused';
+      const student = p.lockedToStudentId ? studentMap.get(p.lockedToStudentId) : undefined;
+      const cls = student ? classMap.get(student.classId) : undefined;
+      return {
+        pinId: p.id,
+        batchId: p.batchId,
+        studentId: p.lockedToStudentId,
+        studentName: p.lockedToStudentName,
+        admissionNumber: student?.admissionNumber ?? null,
+        classId: student?.classId ?? null,
+        className: cls?.name ?? null,
+        usesTotal: p.usesTotal,
+        usesRemaining: p.usesRemaining,
+        status,
+        lastUsedAt: lastUsedMap.get(p.id)?.toISOString() ?? null,
+        createdAt: p.createdAt,
+      };
+    });
+
+    // Used/exhausted pins first (most recently used), then unused pins
+    detail.sort((a, b) => {
+      if (a.status === 'unused' && b.status !== 'unused') return 1;
+      if (a.status !== 'unused' && b.status === 'unused') return -1;
+      if (a.lastUsedAt && b.lastUsedAt) return b.lastUsedAt.localeCompare(a.lastUsedAt);
+      return 0;
+    });
+
+    const summary = {
+      totalPins: pins.length,
+      usedPins: detail.filter((p) => p.status === 'used').length,
+      unusedPins: detail.filter((p) => p.status === 'unused').length,
+      exhaustedPins: detail.filter((p) => p.status === 'exhausted').length,
+    };
+
+    return { hasActiveBatch: true, summary, pins: detail };
   }
 
   // ── Super Admin: get all batches ──────────────────────────────────────────

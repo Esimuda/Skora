@@ -53,6 +53,18 @@ export class PinBatchesController {
     return this.service.getBatchStats(schoolId, term, academicYear);
   }
 
+  // Per-PIN usage detail for the principal's "Online Reports" tracker tab —
+  // which cards have been scratched/used by parents, and for which student.
+  @Get('schools/:schoolId/batches/usage')
+  @Roles('school_admin', 'admin', 'super_admin')
+  getPinUsageDetail(
+    @Param('schoolId') schoolId: string,
+    @Query('term') term: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    return this.service.getPinUsageDetail(schoolId, term, academicYear);
+  }
+
   @Get('schools/:schoolId/batches/:batchId/pins')
   @Roles('school_admin', 'admin', 'super_admin')
   getRawPins(
