@@ -14,66 +14,80 @@ type StepPanel = {
 const HOW_PANELS: StepPanel[] = [
   {
     icon: "school",
-    title: "School Registered",
-    sub: "Principal has created 6 classes, enrolled 12 teachers. System is ready for term entry.",
+    title: "School & Class Setup",
+    sub: "Principal registers the school, creates classes, and invites teachers by email. One-time setup — takes five minutes.",
     icon2: "manage_accounts",
-    title2: "Teachers Invited",
-    sub2: "Each teacher received an email invite and has set up their account.",
+    title2: "Teachers Onboarded",
+    sub2: "Each teacher receives an email invite, sets up their account, and is assigned to their class immediately.",
   },
   {
     icon: "edit_note",
     title: "Score Entry Open",
-    sub: "Teachers entering CA1, CA2 & Exam scores for First Term 2024/25.",
+    sub: "Teachers enter CA1, CA2 & Exam scores for each student per subject. Totals, grades, and class positions computed instantly.",
     icon2: "calculate",
     title2: "Auto-Calculated",
-    sub2: "Totals, grades, and class positions computed in real-time as scores are entered.",
+    sub2: "Positions, percentages, and grade remarks are updated in real-time as teachers type. No manual calculation needed.",
   },
   {
     icon: "send",
     title: "Results Submitted",
-    sub: "JSS 2A results submitted by Mr. Adewale. Pending principal review.",
-    icon2: "approval",
-    title2: "Awaiting Approval",
-    sub2: "Principal has received a notification and can review all submitted entries.",
+    sub: "Teacher submits their class results for principal review. Principal receives a notification to review entries.",
+    icon2: "verified",
+    title2: "Principal Approves",
+    sub2: "Principal reviews, writes comments, and approves. Results are locked and ready for distribution.",
   },
   {
-    icon: "verified",
-    title: "Results Approved",
-    sub: "Principal has approved all results for JSS 2A. No corrections needed.",
-    icon2: "picture_as_pdf",
-    title2: "PDFs Generated",
-    sub2: "38 branded report cards ready to download and distribute to students.",
+    icon: "style",
+    title: "Scratch Cards Issued",
+    sub: "School purchases a batch of scratch cards from Skora. Parents buy cards from the school bursar to access results.",
+    icon2: "phone_iphone",
+    title2: "Parents Check Online",
+    sub2: "Parent visits the Skora portal, scratches the card, enters the PIN, and views their child's result sheet instantly.",
+  },
+  {
+    icon: "sim_card_download",
+    title: "Physical Reports (Optional)",
+    sub: "School pays to unlock ZIP download for a class or the entire school — one PDF per student, ready to print.",
+    icon2: "print",
+    title2: "Printed & Distributed",
+    sub2: "Principal prints result sheets and distributes on closing day. Both channels can run simultaneously.",
   },
 ];
 
 const STEP_TITLES = [
   {
     title: "School & Class Setup",
-    desc: "The principal registers the school, creates classes (JSS 1–3, SSS 1–3), and invites teachers via email. One-time, takes five minutes.",
+    desc: "Principal registers the school, creates classes, and invites teachers by email. One-time setup — takes five minutes.",
   },
   {
     title: "Teachers Enter Scores",
-    desc: "Each teacher logs into their class, enters CA1, CA2, and exam scores per subject per student. The system validates and totals automatically.",
+    desc: "Each teacher logs into their class, enters CA1, CA2, and exam scores per subject. The system validates, totals, and ranks automatically.",
   },
   {
-    title: "Submit for Approval",
-    desc: "When ready, teachers submit results. The principal receives a notification and can approve, comment, or request corrections.",
+    title: "Submit & Approve",
+    desc: "Teachers submit for review. Principals approve, comment, or request corrections — giving full audit control over every result.",
   },
   {
-    title: "Print Report Cards",
-    desc: "Approved results become print-ready. Download a branded PDF for every student in the class — with rank, grades, attendance, and behaviour.",
+    title: "Scratch Cards for Parents",
+    desc: "School purchases scratch card batches from Skora and sells them to parents. Parents use the PIN to view results online via the Skora Parent Portal.",
+  },
+  {
+    title: "Physical Reports (Optional)",
+    desc: "Schools that prefer to print and distribute physically can unlock ZIP downloads — a PDF per student, per class or whole school — paid once per term.",
   },
 ];
 
 const MARQUEE_ITEMS = [
-  { icon: "grade", label: "Nigerian Grading (A–F)" },
+  { icon: "style", label: "Scratch Card Revenue" },
+  { icon: "phone_iphone", label: "Parent Portal Access" },
+  { icon: "sim_card_download", label: "ZIP Physical Reports" },
   { icon: "psychology", label: "Psychometric Assessment" },
-  { icon: "picture_as_pdf", label: "PDF Report Cards" },
-  { icon: "wifi_off", label: "Fully Offline" },
   { icon: "approval", label: "Principal Approvals" },
   { icon: "leaderboard", label: "Position Ranking" },
-  { icon: "groups", label: "Multi-class Management" },
+  { icon: "picture_as_pdf", label: "3 Report Templates" },
   { icon: "checklist", label: "Attendance Tracking" },
+  { icon: "groups", label: "Multi-class Management" },
+  { icon: "grade", label: "Nigerian Grading (A–F)" },
 ];
 
 export function LandingPage() {
@@ -83,7 +97,6 @@ export function LandingPage() {
   const [activeStep, setActiveStep] = useState(0);
   const userInteractedRef = useRef(false);
 
-  // Nav scroll shadow
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -91,7 +104,6 @@ export function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Fade-up on scroll
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -111,7 +123,6 @@ export function LandingPage() {
     return () => observer.disconnect();
   }, []);
 
-  // Auto-cycle the "How it works" steps until the user clicks one
   useEffect(() => {
     const id = window.setInterval(() => {
       if (userInteractedRef.current) return;
@@ -127,8 +138,6 @@ export function LandingPage() {
 
   const openApp = () => navigate("/login");
 
-  // HashRouter would intercept <a href="#features"> as a route change, so we
-  // scroll manually instead.
   const scrollToId = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     const el = document.getElementById(id);
@@ -154,11 +163,7 @@ export function LandingPage() {
           <li><a href="#how" onClick={scrollToId("how")}>How it works</a></li>
           <li><a href="#roles" onClick={scrollToId("roles")}>Roles</a></li>
           <li>
-            <a
-              href="/login"
-              className="nav-cta"
-              onClick={(e) => { e.preventDefault(); openApp(); }}
-            >
+            <a href="/login" className="nav-cta" onClick={(e) => { e.preventDefault(); openApp(); }}>
               Open App →
             </a>
           </li>
@@ -173,11 +178,11 @@ export function LandingPage() {
             Built for Nigerian Secondary Schools
           </div>
           <h1 className="hero-h1">
-            The Academic<br />
-            <span className="accent-line">Ledger That<br />Schools Trust</span>
+            Results Management<br />
+            <span className="accent-line">Schools Can Earn From</span>
           </h1>
           <p className="hero-sub">
-            Skora RMS digitises your school's entire result management workflow — from CA entry to PDF report cards — with precision, speed, and offline reliability.
+            Skora RMS handles your entire result workflow — from CA entry to parent delivery. Schools generate revenue by selling scratch card access to parents, or distribute printed PDFs with a single download.
           </p>
           <div className="hero-actions">
             <button type="button" className="lp-btn-primary" onClick={openApp}>
@@ -186,77 +191,62 @@ export function LandingPage() {
             </button>
             <a href="#how" className="lp-btn-ghost" onClick={scrollToId("how")}>
               See how it works
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_downward</span>
             </a>
           </div>
           <div className="hero-trust">
-            <span>Offline-capable</span>
-            <div className="trust-dot" />
-            <span>Nigerian grading system</span>
-            <div className="trust-dot" />
-            <span>PDF report cards</span>
-            <div className="trust-dot" />
-            <span>Free to use</span>
+            <div className="trust-item">
+              <span className="material-symbols-outlined trust-icon">style</span>
+              <span>Schools earn from scratch cards</span>
+            </div>
+            <div className="trust-sep" />
+            <div className="trust-item">
+              <span className="material-symbols-outlined trust-icon">phone_iphone</span>
+              <span>Parents check results online</span>
+            </div>
+            <div className="trust-sep" />
+            <div className="trust-item">
+              <span className="material-symbols-outlined trust-icon">sim_card_download</span>
+              <span>Physical ZIP reports available</span>
+            </div>
           </div>
         </div>
-
         <div className="hero-right">
-          <div className="hero-grid-bg" />
-          <div className="hero-float-card card-main">
-            <div className="ledger-card-title">JSS 2A · First Term Results</div>
-            <div className="lp-ledger-row">
-              <span className="ledger-row-name">ADEYEMI, FAVOUR</span>
-              <span className="ledger-row-score score-a">87 · A</span>
+          <div className="hero-card-stack">
+            <div className="hero-card hero-card-back">
+              <div className="hc-label">JSS 2A · First Term 2024/25</div>
+              <div className="hc-student">Okonkwo, Chukwuemeka</div>
+              <div className="hc-score-row">
+                <span className="hc-score">87.4%</span>
+                <span className="hc-pos">1st Position</span>
+              </div>
             </div>
-            <div className="lp-ledger-row">
-              <span className="ledger-row-name">IBRAHIM, HASSAN</span>
-              <span className="ledger-row-score score-a">82 · A</span>
+            <div className="hero-card hero-card-front">
+              <div className="hc-chip">
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>style</span>
+                Scratch Card Sold
+              </div>
+              <div className="hc-label">Parent Portal Access</div>
+              <div className="hc-student">PIN: ● ● ● ● ● ●</div>
+              <div className="hc-row">
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--lp-accent)" }}>check_circle</span>
+                <span style={{ fontSize: 12 }}>3 of 5 views remaining</span>
+              </div>
+              <div className="hc-row" style={{ marginTop: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--lp-accent)" }}>phone_iphone</span>
+                <span style={{ fontSize: 12 }}>Viewed on mobile · 2h ago</span>
+              </div>
             </div>
-            <div className="lp-ledger-row">
-              <span className="ledger-row-name">OKONKWO, CHIBUNDO</span>
-              <span className="ledger-row-score score-b">74 · B</span>
-            </div>
-            <div className="lp-ledger-row">
-              <span className="ledger-row-name">BELLO, AMINAT</span>
-              <span className="ledger-row-score score-a">91 · A</span>
-            </div>
-            <div className="lp-ledger-row">
-              <span className="ledger-row-name">EZE, CHUKWUEMEKA</span>
-              <span className="ledger-row-score score-b">69 · B</span>
-            </div>
-            <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
-              <span className="lp-badge lp-badge-green">Submitted</span>
-              <span style={{ fontSize: "0.62rem", color: "rgba(255,255,255,0.35)", alignSelf: "center" }}>
-                · 34 students
-              </span>
-            </div>
-          </div>
-          <div className="hero-float-card card-top-right">
-            <div className="card-stat-label">Approval Rate</div>
-            <div className="card-stat-value">94%</div>
-            <div className="card-stat-sub">This term</div>
-          </div>
-          <div className="hero-float-card card-bottom-left">
-            <div className="card-stat-label">PDF Generated</div>
-            <div
-              className="card-stat-value"
-              style={{ fontSize: "1.1rem", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 20, color: "#91d78a" }}>check_circle</span>
-              <span style={{ color: "#91d78a" }}>Ready</span>
-            </div>
-            <div className="card-stat-sub">38 report cards</div>
           </div>
         </div>
       </section>
 
       {/* MARQUEE */}
-      <div className="marquee-strip">
+      <div className="marquee-wrap">
         <div className="marquee-track">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((m, i) => (
-            <div className="marquee-item" key={`${m.icon}-${i}`}>
-              <span className="material-symbols-outlined">{m.icon}</span>
-              {m.label}
+          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+            <div className="marquee-item" key={i}>
+              <span className="material-symbols-outlined marquee-icon">{item.icon}</span>
+              {item.label}
             </div>
           ))}
         </div>
@@ -265,38 +255,54 @@ export function LandingPage() {
       {/* FEATURES */}
       <section id="features">
         <div className="fade-up">
-          <div className="section-eyebrow">Core Capabilities</div>
-          <h2 className="section-h2">Everything a Nigerian school<br />actually needs</h2>
-          <p className="section-lead">
-            Skora is purpose-built — not a generic platform retrofitted for local needs. Every feature reflects how Nigerian secondary schools actually work.
-          </p>
+          <div className="section-eyebrow">Features</div>
+          <h2 className="section-h2">Everything your school needs,<br />nothing it doesn't</h2>
+          <p className="section-lead">Built specifically for the Nigerian school calendar, grading system, and result distribution culture.</p>
         </div>
         <div className="features-grid">
-          <div className="feature-card fade-up fade-up-delay-1">
-            <div className="feature-icon icon-blue">
-              <span className="material-symbols-outlined">calculate</span>
+          <div className="feature-card fade-up">
+            <div className="feature-icon icon-primary">
+              <span className="material-symbols-outlined">style</span>
             </div>
-            <div className="feature-title">Nigerian Grading System</div>
+            <div className="feature-title">Scratch Card Revenue Model</div>
             <p className="feature-desc">
-              CA1 + CA2 + Exam scores aggregated automatically. Grades computed to A–F with local thresholds. Positions calculated per class with tie-breaking.
+              Schools purchase batches of scratch cards from Skora and sell them to parents at a markup. Parents use the PIN to access their child's results online via the Skora Parent Portal — a revenue stream built into the product.
+            </p>
+          </div>
+          <div className="feature-card fade-up fade-up-delay-1">
+            <div className="feature-icon icon-accent">
+              <span className="material-symbols-outlined">phone_iphone</span>
+            </div>
+            <div className="feature-title">Parent Portal</div>
+            <p className="feature-desc">
+              Parents visit the Skora portal, enter their scratch card PIN, and view their child's full result sheet — with grades, position, teacher comments, and behavioural ratings. Up to 5 views per card.
             </p>
           </div>
           <div className="feature-card fade-up fade-up-delay-2">
-            <div className="feature-icon icon-green">
-              <span className="material-symbols-outlined">picture_as_pdf</span>
+            <div className="feature-icon icon-blue">
+              <span className="material-symbols-outlined">sim_card_download</span>
             </div>
-            <div className="feature-title">Branded PDF Report Cards</div>
+            <div className="feature-title">Physical ZIP Downloads</div>
             <p className="feature-desc">
-              Classic, Modern, and Hybrid report card templates. School logo, principal signature, behavioural assessments — all printed to PDF in one click.
+              Schools that prefer physical distribution pay once per term to unlock ZIP downloads — one clean PDF per student, per class or whole school. Re-download as many times as needed. Both channels can run side by side.
             </p>
           </div>
           <div className="feature-card fade-up fade-up-delay-3">
-            <div className="feature-icon icon-amber">
-              <span className="material-symbols-outlined">wifi_off</span>
+            <div className="feature-icon icon-green">
+              <span className="material-symbols-outlined">picture_as_pdf</span>
             </div>
-            <div className="feature-title">Offline-First Architecture</div>
+            <div className="feature-title">3 Report Card Templates</div>
             <p className="feature-desc">
-              Built as a Progressive Web App. All data lives in IndexedDB locally. Work during power cuts and poor connectivity — sync when online.
+              Classic, Modern, and Hybrid layouts — each displaying the principal's and teacher's name, student grades, position, psychometric scores, attendance, and comments. Fully branded with the school's name.
+            </p>
+          </div>
+          <div className="feature-card fade-up">
+            <div className="feature-icon icon-amber">
+              <span className="material-symbols-outlined">verified</span>
+            </div>
+            <div className="feature-title">Principal Approval Workflow</div>
+            <p className="feature-desc">
+              Teachers submit results for review. Principals approve, reject with comments, or request revisions — full audit control over every result before anything is distributed to parents.
             </p>
           </div>
           <div className="feature-card fade-up fade-up-delay-1">
@@ -305,7 +311,7 @@ export function LandingPage() {
             </div>
             <div className="feature-title">Attendance Tracking</div>
             <p className="feature-desc">
-              Mark attendance per class per term. Data feeds directly into each student's report card. Cumulative school days tracked automatically.
+              Mark attendance per class per term. Cumulative school days tracked automatically and printed directly on each student's result sheet.
             </p>
           </div>
           <div className="feature-card fade-up fade-up-delay-2">
@@ -314,16 +320,16 @@ export function LandingPage() {
             </div>
             <div className="feature-title">Psychometric Assessments</div>
             <p className="feature-desc">
-              8 behavioural metrics scored per student. Affective and cognitive domains evaluated with a clean, fast input interface for teachers.
+              8 behavioural and cognitive metrics scored per student. Affective and psychomotor domains evaluated with a clean, fast input interface for teachers — appears on every result sheet.
             </p>
           </div>
           <div className="feature-card fade-up fade-up-delay-3">
             <div className="feature-icon icon-amber">
-              <span className="material-symbols-outlined">verified</span>
+              <span className="material-symbols-outlined">qr_code_scanner</span>
             </div>
-            <div className="feature-title">Principal Approval Workflow</div>
+            <div className="feature-title">Card Usage Tracker</div>
             <p className="feature-desc">
-              Teachers submit results for review. Principals approve, reject with comments, or request revisions — giving schools full audit control.
+              Principals can see exactly which scratch cards have been used, which parent used them, how many of their 5 views remain, and when they last accessed results — all from the Online Reports tab.
             </p>
           </div>
         </div>
@@ -333,8 +339,8 @@ export function LandingPage() {
       <section id="how">
         <div className="fade-up">
           <div className="section-eyebrow">Workflow</div>
-          <h2 className="section-h2">From registration to<br />printed report card</h2>
-          <p className="section-lead">Skora guides your school through a structured, predictable process every term.</p>
+          <h2 className="section-h2">From score entry to<br />parent's hands</h2>
+          <p className="section-lead">Skora guides your school through a structured, repeatable process every term — with two distribution channels built in.</p>
         </div>
         <div className="how-grid">
           <div className="steps-list fade-up">
@@ -380,9 +386,9 @@ export function LandingPage() {
       <section id="roles">
         <div className="fade-up">
           <div className="section-eyebrow">User Roles</div>
-          <h2 className="section-h2">Two roles, one system</h2>
+          <h2 className="section-h2">Three roles, one system</h2>
           <p className="section-lead">
-            Skora separates concerns cleanly. Principals oversee and approve; teachers focus on their class and subjects.
+            Skora separates concerns cleanly. Principals oversee and distribute; teachers manage their class; parents access results on demand.
           </p>
         </div>
         <div className="roles-grid">
@@ -391,16 +397,16 @@ export function LandingPage() {
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>admin_panel_settings</span>
               Principal
             </div>
-            <div className="role-title">Full Oversight,<br />Complete Control</div>
+            <div className="role-title">Full Oversight,<br />Two Revenue Channels</div>
             <p className="role-desc">
-              The principal is the school authority in Skora. Approve results, manage teachers, configure the school, and download all report cards.
+              The principal is the school authority in Skora. Approve results, issue scratch cards to parents, download physical ZIP reports, and track which cards have been used.
             </p>
             <div className="role-features">
               <div className="role-feature"><div className="role-feature-dot" />Approve or reject submitted results</div>
-              <div className="role-feature"><div className="role-feature-dot" />Invite and manage teachers</div>
-              <div className="role-feature"><div className="role-feature-dot" />Create classes and assign subjects</div>
-              <div className="role-feature"><div className="role-feature-dot" />Download all PDFs from one place</div>
-              <div className="role-feature"><div className="role-feature-dot" />Configure school branding</div>
+              <div className="role-feature"><div className="role-feature-dot" />Request and manage scratch card batches</div>
+              <div className="role-feature"><div className="role-feature-dot" />Track card usage per student</div>
+              <div className="role-feature"><div className="role-feature-dot" />Unlock and download ZIP physical reports</div>
+              <div className="role-feature"><div className="role-feature-dot" />Invite teachers and configure school branding</div>
             </div>
           </div>
           <div className="role-card role-card-teacher fade-up fade-up-delay-2">
@@ -410,14 +416,31 @@ export function LandingPage() {
             </div>
             <div className="role-title">Class-Focused,<br />Efficient Entry</div>
             <p className="role-desc">
-              Teachers manage their assigned class and subjects. Enter scores, track attendance, write comments, and submit when complete.
+              Teachers manage their assigned class. Enter scores, track attendance, write comments, fill psychometric assessments, and submit for approval.
             </p>
             <div className="role-features">
               <div className="role-feature"><div className="role-feature-dot" />Enter CA1, CA2 & Exam scores</div>
               <div className="role-feature"><div className="role-feature-dot" />Mark attendance per term</div>
-              <div className="role-feature"><div className="role-feature-dot" />Rate behavioural metrics</div>
+              <div className="role-feature"><div className="role-feature-dot" />Rate 8 behavioural metrics per student</div>
               <div className="role-feature"><div className="role-feature-dot" />Write end-of-term comments</div>
-              <div className="role-feature"><div className="role-feature-dot" />Submit results for approval</div>
+              <div className="role-feature"><div className="role-feature-dot" />Submit results for principal approval</div>
+            </div>
+          </div>
+          <div className="role-card role-card-teacher fade-up fade-up-delay-3">
+            <div className="role-badge">
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>phone_iphone</span>
+              Parent
+            </div>
+            <div className="role-title">On-Demand Access,<br />No App Needed</div>
+            <p className="role-desc">
+              Parents buy a scratch card from the school bursar, visit the Skora Parent Portal on any device, enter their PIN, and view their child's full result sheet instantly.
+            </p>
+            <div className="role-features">
+              <div className="role-feature"><div className="role-feature-dot" />Access results from any phone or browser</div>
+              <div className="role-feature"><div className="role-feature-dot" />Up to 5 views per card</div>
+              <div className="role-feature"><div className="role-feature-dot" />See grades, position, and teacher comments</div>
+              <div className="role-feature"><div className="role-feature-dot" />Psychometric and attendance data included</div>
+              <div className="role-feature"><div className="role-feature-dot" />No account or download required</div>
             </div>
           </div>
         </div>
@@ -431,16 +454,16 @@ export function LandingPage() {
             <div className="stat-label">Report Card Templates</div>
           </div>
           <div className="stat-block fade-up fade-up-delay-1">
-            <div className="stat-value">8</div>
-            <div className="stat-label">Behavioural Metrics</div>
+            <div className="stat-value">5</div>
+            <div className="stat-label">Views Per Scratch Card</div>
           </div>
           <div className="stat-block fade-up fade-up-delay-2">
-            <div className="stat-value">100<span>%</span></div>
-            <div className="stat-label">Offline Capable</div>
+            <div className="stat-value">2</div>
+            <div className="stat-label">Distribution Channels</div>
           </div>
           <div className="stat-block fade-up fade-up-delay-3">
-            <div className="stat-value">0<span>₦</span></div>
-            <div className="stat-label">Cost to Schools</div>
+            <div className="stat-value">8</div>
+            <div className="stat-label">Behavioural Metrics</div>
           </div>
         </div>
       </section>
@@ -449,9 +472,9 @@ export function LandingPage() {
       <section id="cta">
         <div className="cta-card fade-up">
           <p className="cta-label">Ready to get started?</p>
-          <h2 className="cta-h2">"Precision is the highest<br />form of professional trust."</h2>
+          <h2 className="cta-h2">Your school should earn<br />from its own results.</h2>
           <p className="cta-sub">
-            Join schools already managing their results the right way. It takes minutes to set up, and your first term results are waiting.
+            Register your school, invite your teachers, and run your first term on Skora. Scratch cards sell themselves — parents already expect to pay to access results.
           </p>
           <div className="cta-actions">
             <button type="button" className="btn-cta-primary" onClick={openApp}>
