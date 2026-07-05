@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as compression from 'compression';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -11,7 +12,19 @@ async function bootstrap() {
     logger: process.env.NODE_ENV === 'production'
       ? ['error', 'warn']
       : ['log', 'error', 'warn', 'debug'],
+    // We set our own body-size limits below (school logos and student
+    // passport photos are sent as base64 strings in the JSON body, which
+    // inflates roughly 33% over the original file size — well past
+    // Express's 100kb default).
+    bodyParser: false,
   });
+
+  // ── Body size limits ────────────────────────────────────────────────────────
+  // School logos and student passport photos are uploaded as base64 data URLs
+  // inside JSON, not multipart file uploads. A 2MB image becomes ~2.7MB of
+  // base64 text, so the limit needs enough headroom above that.
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // ── Security ────────────────────────────────────────────────────────────────
   app.use(
