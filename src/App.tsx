@@ -5,6 +5,8 @@ import TeacherRoutes from "./routes/teacherRoutes";
 import PrincipalRoutes from "./routes/principalRoutes";
 import AdminRoutes from "./routes/adminRoutes";
 import { ParentPortal } from "./pages/portal/ParentPortal";
+import { TermsPage } from "./pages/legal/TermsPage";
+import { PrivacyPage } from "./pages/legal/PrivacyPage";
 import { useAuthStore } from "./store/authStore";
 import { useDataStore } from "./store/dataStore";
 
@@ -26,6 +28,10 @@ function App() {
       <Routes>
         {/* Public parent portal — no auth needed */}
         <Route path="/portal/*" element={<ParentPortal />} />
+
+        {/* Public legal pages — accessible whether logged in or not */}
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* Authenticated routes */}
         <Route

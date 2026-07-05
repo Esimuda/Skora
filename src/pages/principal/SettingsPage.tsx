@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useDataStore } from "@/store/dataStore";
@@ -91,6 +91,7 @@ export const SettingsPage = () => {
     email: "",
     phoneNumber: "",
     motto: "",
+    logo: "",
     principalName: "",
     website: "",
     state: "",
@@ -101,6 +102,9 @@ export const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState("");
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -119,6 +123,7 @@ export const SettingsPage = () => {
   const [requestingBatch, setRequestingBatch] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
   const [batchSuccess, setBatchSuccess] = useState(false);
+  const [lastRequestedBatch, setLastRequestedBatch] = useState<any>(null);
   const [downloadingBatchId, setDownloadingBatchId] = useState<string | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
 
@@ -150,6 +155,7 @@ export const SettingsPage = () => {
         email: s.email ?? "",
         phoneNumber: s.phoneNumber ?? "",
         motto: s.motto ?? "",
+        logo: s.logo ?? "",
         principalName: s.principalName ?? "",
         website: s.website ?? "",
         state: s.state ?? "",
@@ -157,6 +163,7 @@ export const SettingsPage = () => {
         schoolType: (s.schoolType as "public" | "private" | "mission") ?? "public",
         templateId: s.templateId ?? "classic",
       });
+      setLogoPreview(s.logo ?? "");
     }).catch(() => {
       // fall back to store data if already loaded
       if (school) {
@@ -166,6 +173,7 @@ export const SettingsPage = () => {
           email: school.email ?? "",
           phoneNumber: school.phoneNumber ?? "",
           motto: school.motto ?? "",
+          logo: school.logo ?? "",
           principalName: school.principalName ?? "",
           website: school.website ?? "",
           state: school.state ?? "",
@@ -173,6 +181,7 @@ export const SettingsPage = () => {
           schoolType: (school.schoolType as "public" | "private" | "mission") ?? "public",
           templateId: school.templateId ?? "classic",
         });
+        setLogoPreview(school.logo ?? "");
       }
     });
   }, [user?.schoolId]);
@@ -199,6 +208,35 @@ export const SettingsPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── Logo upload ──────────────────────────────────────────────────────────
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Please select an image file");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError("Image must be less than 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const b64 = reader.result as string;
+      setLogoPreview(b64);
+      setForm((prev) => ({ ...prev, logo: b64 }));
+      setLogoError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoPreview("");
+    setForm((prev) => ({ ...prev, logo: "" }));
+    setLogoError(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
   const handleDeleteSchool = async () => {
@@ -239,13 +277,15 @@ export const SettingsPage = () => {
         },
       );
       setBatches((prev) => [created, ...prev]);
+      setLastRequestedBatch(created);
       setBatchSuccess(true);
       setBatchForm({
         quantity: '',
         term: getCurrentTerm() as Term,
         academicYear: getCurrentAcademicYear(),
       });
-      setTimeout(() => setBatchSuccess(false), 5000);
+      // Stays visible until the principal explicitly dismisses it — see the
+      // close button on the payment instructions panel below.
     } catch (e: any) {
       setBatchError(e.message ?? 'Failed to submit batch request');
     } finally {
@@ -440,6 +480,68 @@ export const SettingsPage = () => {
                 placeholder="e.g. Knowledge is Power"
                 className={inputCls}
               />
+            </div>
+            <div className="md:col-span-2">
+              <label className={labelCls}>School Logo</label>
+              {!logoPreview ? (
+                <div
+                  onClick={() => logoInputRef.current?.click()}
+                  className="border-2 border-dashed border-outline-variant/50 rounded-xl p-6 text-center cursor-pointer hover:border-primary hover:bg-surface-container-low transition-colors"
+                >
+                  <Icon name="add_photo_alternate" className="text-4xl text-outline/40 block mx-auto mb-2" />
+                  <p className="text-sm font-bold text-on-surface">
+                    Click to upload school logo
+                  </p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    PNG, JPG or GIF · Max 2MB · Appears on every result sheet
+                  </p>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="border-2 border-primary/40 rounded-xl p-4 bg-surface-container-low flex items-center gap-4">
+                  <img
+                    src={logoPreview}
+                    alt="School logo preview"
+                    className="w-20 h-20 object-contain bg-surface-container-lowest rounded-lg border border-outline-variant/30"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-on-surface">
+                      Logo uploaded
+                    </p>
+                    <p className="text-xs text-on-surface-variant mt-0.5">
+                      Appears on all result sheets · click Save Changes to apply
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="text-sm text-primary hover:text-primary/80 font-bold"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="text-sm text-error hover:text-error/80 font-bold"
+                  >
+                    Remove
+                  </button>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                </div>
+              )}
+              {logoError && <p className="text-sm text-error mt-2">{logoError}</p>}
             </div>
           </div>
         </div>
@@ -698,13 +800,33 @@ export const SettingsPage = () => {
             </button>
           </div>
 
-          {/* Payment instructions — shown after successful request */}
+          {/* Payment instructions — shown after successful request. Stays open
+              until the principal dismisses it with the close button; it no
+              longer auto-hides on a timer. */}
           {batchSuccess && (
-            <div className="p-5 bg-secondary-container/30 rounded-xl border border-secondary/20 mb-6">
-              <div className="flex items-start gap-3">
+            <div className="relative p-5 bg-secondary-container/30 rounded-xl border border-secondary/20 mb-6">
+              <button
+                onClick={() => setBatchSuccess(false)}
+                aria-label="Dismiss payment instructions"
+                title="Dismiss"
+                className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-black/5 text-on-surface-variant"
+              >
+                <Icon name="close" className="text-lg" />
+              </button>
+              <div className="flex items-start gap-3 pr-8">
                 <Icon name="check_circle" className="text-secondary text-xl flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <p className="font-bold text-on-surface mb-2">Batch request submitted successfully!</p>
+                  {lastRequestedBatch && (
+                    <p className="text-sm text-on-surface-variant mb-3">
+                      {Number(lastRequestedBatch.quantity).toLocaleString()} cards for{' '}
+                      <span className="capitalize">{lastRequestedBatch.term}</span> Term,{' '}
+                      {lastRequestedBatch.academicYear} —{' '}
+                      <span className="font-black text-primary">
+                        ₦{Number(lastRequestedBatch.totalAmount).toLocaleString()}
+                      </span>
+                    </p>
+                  )}
                   <p className="text-sm text-on-surface-variant mb-3">
                     To activate your batch, transfer the exact amount to:
                   </p>

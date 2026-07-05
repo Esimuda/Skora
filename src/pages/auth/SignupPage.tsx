@@ -26,6 +26,7 @@ export const SignupPage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<'classic' | 'modern' | 'hybrid'>('classic');
   const [logoPreview, setLogoPreview] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const [schoolData, setSchoolData] = useState({
     schoolName: '',
@@ -142,6 +143,10 @@ export const SignupPage = () => {
   // ── Submit ───────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
+    if (!agreedToTerms) {
+      setApiError('Please agree to the Terms of Service and Privacy Policy to continue');
+      return;
+    }
     setLoading(true);
     setApiError('');
     try {
@@ -674,6 +679,28 @@ export const SignupPage = () => {
                 </div>
               </div>
 
+              {/* Terms & Privacy consent */}
+              <label className="flex items-start gap-2.5 text-xs text-on-surface-variant pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+                />
+                <span>
+                  I agree to Skora's{" "}
+                  <Link to="/terms" target="_blank" className="text-primary font-bold hover:underline">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link to="/privacy" target="_blank" className="text-primary font-bold hover:underline">
+                    Privacy Policy
+                  </Link>
+                  , including how student and school data is processed on this
+                  platform.
+                </span>
+              </label>
+
               {apiError && (
                 <p className="text-sm text-error bg-error-container/30 rounded-lg px-4 py-2.5">
                   {apiError}
@@ -686,7 +713,7 @@ export const SignupPage = () => {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={loading}
+                  disabled={loading || !agreedToTerms}
                   className="btn-primary flex-1 text-sm disabled:opacity-50"
                 >
                   {loading ? 'Creating Account...' : 'Create School Account'}

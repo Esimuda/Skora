@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import "./LandingPage.css";
 
 type StepPanel = {
@@ -503,6 +503,8 @@ export function LandingPage() {
           <li><a href="#features" onClick={scrollToId("features")}>Features</a></li>
           <li><a href="#how" onClick={scrollToId("how")}>How it works</a></li>
           <li><a href="#roles" onClick={scrollToId("roles")}>Roles</a></li>
+          <li><Link to="/terms">Terms of Service</Link></li>
+          <li><Link to="/privacy">Privacy Policy</Link></li>
         </ul>
         <div className="footer-copy">© {new Date().getFullYear()} Skora. All rights reserved.</div>
       </footer>
