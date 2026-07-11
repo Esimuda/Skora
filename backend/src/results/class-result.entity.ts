@@ -41,7 +41,7 @@ export class ClassResult {
   @Column({ type: 'timestamp', nullable: true })
   approvedAt!: Date | null;
 
- @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   approvedBy!: string | null;
 
   @Column({ type: 'text', nullable: true })
