@@ -145,10 +145,14 @@ export class TeachersService {
     if (!invite || invite.used) throw new BadRequestException('Invalid or already used invite link');
     if (invite.expiresAt < new Date()) throw new BadRequestException('Invite link has expired');
 
-    const teacher = await this.repo.findOne({ where: { email: invite.email, schoolId: invite.schoolId } });
-    if (teacher) {
-      await this.repo.update(teacher.id, { status: 'active' });
+    // Teacher.email is globally unique, so match on email alone. Filtering by
+    // schoolId too was fragile and could silently fail to find the teacher,
+    // leaving their status stuck on 'pending' even after a successful accept.
+    const teacher = await this.repo.findOne({ where: { email: invite.email } });
+    if (!teacher) {
+      throw new NotFoundException('No teacher record found for this invite. Please contact your school to be re-invited.');
     }
+    await this.repo.update(teacher.id, { status: 'active' });
     await this.tokenRepo.update(invite.id, { used: true });
 
     return { message: 'Invite accepted. You can now log in with your temporary password.' };

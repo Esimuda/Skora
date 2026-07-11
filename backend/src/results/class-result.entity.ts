@@ -39,13 +39,13 @@ export class ClassResult {
   submittedBy!: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  approvedAt!: Date;
+  approvedAt!: Date | null;
 
   @Column({ nullable: true })
-  approvedBy!: string;
+  approvedBy!: string | null;
 
   @Column({ type: 'text', nullable: true })
-  principalNote!: string;
+  principalNote!: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   rejectedAt!: Date | null;
