@@ -93,6 +93,12 @@ export const SubmitResultsPage = () => {
 
   const handleSubmit = async () => {
     if (!selectedClass || !allComplete) return;
+    if (resultStatus?.status === 'approved') {
+      const confirmed = window.confirm(
+        'This class has already been approved. Resubmitting will revoke that approval and send it back to the principal for re-review. Continue?'
+      );
+      if (!confirmed) return;
+    }
     setSubmitting(true);
     setApiError(null);
     try {
@@ -183,7 +189,7 @@ export const SubmitResultsPage = () => {
                 <span className="p-2 bg-secondary-container/40 text-on-secondary-container rounded-lg flex-shrink-0"><Icon name="verified" /></span>
                 <div>
                   <p className="font-bold text-on-surface">Results Approved!</p>
-                  <p className="text-sm text-on-surface-variant mt-0.5">{selectedClass?.name} results have been approved by the principal and are available for download.</p>
+                  <p className="text-sm text-on-surface-variant mt-0.5">{selectedClass?.name} results have been approved by the principal and are available for download. Found a mistake? You can still resubmit below — it will go back to the principal for re-approval.</p>
                   {resultStatus?.principalNote && <p className="text-sm text-on-surface mt-1 italic">Principal's note: "{resultStatus.principalNote}"</p>}
                 </div>
               </div>
@@ -205,7 +211,7 @@ export const SubmitResultsPage = () => {
                 <span className="p-2 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-lg flex-shrink-0"><Icon name="hourglass_empty" /></span>
                 <div>
                   <p className="font-bold text-on-surface">Awaiting Principal Approval</p>
-                  <p className="text-sm text-on-surface-variant mt-0.5">Your results have been submitted. The principal has been notified and will review them shortly.</p>
+                  <p className="text-sm text-on-surface-variant mt-0.5">Your results have been submitted. The principal has been notified and will review them shortly. Spotted an error? You can resubmit below to update it before it's reviewed.</p>
                 </div>
               </div>
             )}
@@ -315,11 +321,19 @@ export const SubmitResultsPage = () => {
             )}
 
             {/* Submit / Resubmit */}
-            {(!isSubmitted || isRejected) && (
+            {(
               <div className="ledger-card p-6">
-                <h3 className="font-headline font-bold text-lg text-primary mb-1">{isRejected ? 'Resubmit After Revision' : 'Ready to Submit?'}</h3>
+                <h3 className="font-headline font-bold text-lg text-primary mb-1">
+                  {isRejected ? 'Resubmit After Revision' : isApproved ? 'Need to Fix Something?' : isSubmitted ? 'Made a Mistake?' : 'Ready to Submit?'}
+                </h3>
                 <p className="text-sm text-on-surface-variant mb-5">
-                  {isRejected ? 'Make the required corrections then resubmit for approval.' : 'Once submitted, the principal will be notified to review and approve. Results can only be downloaded after approval.'}
+                  {isRejected
+                    ? 'Make the required corrections then resubmit for approval.'
+                    : isApproved
+                    ? 'Resubmitting will send these results back to the principal for re-approval.'
+                    : isSubmitted
+                    ? 'You can resubmit to correct a mistake before the principal reviews it. This will replace your previous submission.'
+                    : 'Once submitted, the principal will be notified to review and approve. Results can only be downloaded after approval.'}
                 </p>
                {!allComplete && (
                   <div className="flex items-start gap-3 p-4 bg-tertiary-fixed/30 rounded-xl mb-5">
@@ -344,7 +358,7 @@ export const SubmitResultsPage = () => {
                   {submitting ? (
                     <><span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> Submitting & Notifying Principal...</>
                   ) : allComplete ? (
-                    <><Icon name="send" /> {isRejected ? 'Resubmit Results' : 'Submit Results & Notify Principal'}</>
+                    <><Icon name="send" /> {isRejected || isSubmitted || isApproved ? 'Resubmit Results' : 'Submit Results & Notify Principal'}</>
                   ) : (
                     <><Icon name="lock" /> Complete Checklist First</>
                   )}

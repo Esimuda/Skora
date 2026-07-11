@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClassResult } from './class-result.entity';
@@ -73,9 +73,9 @@ export class ResultsService {
 
     let result: ClassResult;
     if (existing) {
-      if (existing.status === 'approved') {
-        throw new ForbiddenException('Approved results cannot be resubmitted');
-      }
+      // Teachers may resubmit at any stage (submitted, approved, or rejected)
+      // to correct mistakes. A resubmission always goes back through the
+      // principal's approval queue, so prior approval/rejection state is cleared.
       await this.repo.update(existing.id, {
         status: 'submitted',
         submittedAt: new Date(),
@@ -85,6 +85,9 @@ export class ResultsService {
         rejectionReason: null,
         rejectedAt: null,
         rejectedBy: null,
+        approvedAt: null,
+        approvedBy: null,
+        principalNote: null,
       });
       result = await this.repo.findOne({ where: { id: existing.id } }) as ClassResult;
     } else {
